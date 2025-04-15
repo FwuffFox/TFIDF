@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lesta TFIDF</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            padding: 2rem;
+            color: #333;
+        }
+
+        h1, h2 {
+            color: #2c3e50;
+        }
+
+        form {
+            background: #ffffff;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            max-width: 400px;
+            margin-bottom: 2rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+
+        input[type="file"] {
+            margin-bottom: 1rem;
+        }
+
+        button {
+            background: #3498db;
+            color: white;
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        .message {
+            padding: 0.8rem;
+            border-radius: 5px;
+            margin-top: 1rem;
+        }
+
+        .duplicate {
+            background-color: #d6eaf8;
+            color: #21618c;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            background: white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        .upload-count {
+            margin-top: 1.5rem;
+            font-weight: bold;
+            color: #2e4053;
+        }
+    </style>
+</head>
+<body>
+    <h1>Загрузка файла для анализа TF-IDF</h1>
+    <form action="/upload" method="post" enctype="multipart/form-data">
+        <label for="file">Выберите файл:</label>
+        <input type="file" id="file" name="file" required>
+        <button type="submit">Загрузить</button>
+    </form>
+
+    {% if is_duplicate %}
+    <div class="message duplicate">
+        ⚠️ Этот файл уже был загружен ранее.
+    </div>
+    {% endif %}
+
+    {% if result %}
+    <h2>Результаты TF-IDF анализа</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Слово</th>
+                <th>TF</th>
+                <th>IDF</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for word in result %}
+            <tr>
+                <td>{{ word.word }}</td>
+                <td>{{ word.tf }}</td>
+                <td>{{ "%.4f"|format(word.idf) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    {% if upload_count %}
+    <div class="upload-count">
+        📁 Количество загруженных файлов: {{ upload_count }}
+    </div>
+    {% endif %}
+</body>
+</html>
