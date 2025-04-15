@@ -1,3 +1,4 @@
+from pydoc import isdata
 from flask import Flask, request, render_template
 from tfidf import TFIDFCalculator, WordStat
 import tfidf
@@ -15,8 +16,9 @@ def upload_file():
     if file:
         try:
             text = file.read().decode('utf-8')
+            is_duplicate = tfidf_calculator.is_duplicate(text)
             tfidf_result = tfidf_calculator.calculate_tfidf(text)
-            return render_template("index.html", result=tfidf_result)
+            return render_template("index.html", result=tfidf_result, is_duplicate=is_duplicate)
         except Exception as e:
             return f"Error processing file: {e}", 500
     
@@ -25,3 +27,6 @@ def upload_file():
 @app.route("/")
 def index():
     return render_template("index.html")
+
+if __name__ == "__main__":
+    app.run(debug=True)
