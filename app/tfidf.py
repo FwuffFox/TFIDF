@@ -1,5 +1,5 @@
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 import math
 
 special_symbol_clean_regex = re.compile(r"[^\w\s]")
@@ -10,44 +10,43 @@ class WordStat:
         self.tf = tf
         self.idf = idf
 
-class DocumentStat:
-    def __init__(self, hashed_contents, words):
-        self.hashed_contents = hashed_contents
-        self.words = words
-
-    def has_word(self, word: str):
-        return word in self.words
-
 class TFIDFCalculator:
     def __init__(self):
-        self.document_stats = []
-
-
+        self.document_hashes = set()
+        self.word_to_docs = defaultdict(int)  
+        self.total_documents = 0
+        
     def calculate_tfidf(self, document) -> list[WordStat]:
         text = re.sub(special_symbol_clean_regex, "", document.lower())
         words = text.split()
-
-        if not self.is_duplicate(document):
-            self.document_stats.append(DocumentStat(hash(document), words))
-
-        document_word_count = Counter(words)
-
-        idf = {}
-        for word, count in document_word_count.items():
-            word_in_other_docs = 0
-            for document_stat in self.document_stats:
-                if document_stat.has_word(word):
-                    word_in_other_docs += 1
+        
+        if not words:
+            return []
             
-            idf[word] = (math.log(len(self.document_stats) / word_in_other_docs)
-                            if len(self.document_stats) > 1 and word_in_other_docs > 0
-                            else 1.0)
-
-        results = [WordStat(word, count, idf[word]) for word, count in document_word_count.items()]
-        results.sort(key=lambda x: x.idf, reverse=True)
-        return results[:50]
-    
-    def is_duplicate(self, document) -> bool:
         document_hash = hash(document)
-
-        return any(document_hash == doc.hashed_contents for doc in self.document_stats)
+        
+        is_new_document = document_hash not in self.document_hashes
+        
+        if is_new_document:
+            self.document_hashes.add(document_hash)
+            self.total_documents += 1
+            
+            unique_words = set(words)
+            for word in unique_words:
+                self.word_to_docs[word] += 1
+        
+        document_word_count = Counter(words)
+        
+        results = []
+        for word, count in document_word_count.items():
+            docs_with_word = self.word_to_docs.get(word, 0)
+            
+            if docs_with_word > 0 and self.total_documents > 1:
+                idf = math.log(self.total_documents / docs_with_word)
+            else:
+                idf = 1.0
+                
+            results.append(WordStat(word, count, idf))
+        
+        results.sort(key=lambda x: x.idf, reverse=True)
+        return results

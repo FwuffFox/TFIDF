@@ -88,6 +88,38 @@
             font-weight: bold;
             color: #2e4053;
         }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 1.5rem;
+        }
+
+        .pagination form {
+            display: inline;
+        }
+
+        .pagination button {
+            background-color: #3498db;
+            color: white;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .pagination button:hover {
+            background-color: #2980b9;
+        }
+
+        .page-info {
+            text-align: center;
+            margin-top: 0.5rem;
+            font-size: 0.95rem;
+            color: #2c3e50;
+        }
     </style>
 </head>
 <body>
@@ -97,6 +129,12 @@
         <input type="file" id="file" name="file" required>
         <button type="submit">Загрузить</button>
     </form>
+
+    {% if error %}
+    <div class="message" style="background-color: #f8d7da; color: #721c24;">
+        ⚠️ {{ error }}
+    </div>
+    {% endif %}
 
     {% if is_duplicate %}
     <div class="message duplicate">
@@ -125,6 +163,31 @@
         </tbody>
     </table>
     {% endif %}
+    
+    {% if result %}
+    <div class="pagination">
+        {% if page > 1 %}
+        <form method="post" action="/upload">
+            <input type="hidden" name="text" value="{{ text }}">
+            <input type="hidden" name="page" value="{{ page - 1 }}">
+            <button type="submit">← Назад</button>
+        </form>
+        {% endif %}
+
+        {% if page < total_pages %}
+        <form method="post" action="/upload">
+            <input type="hidden" name="text" value="{{ text }}">
+            <input type="hidden" name="page" value="{{ page + 1 }}">
+            <button type="submit">Вперёд →</button>
+        </form>
+        {% endif %}
+    </div>
+
+    <div class="page-info">
+        Страница {{ page }} из {{ total_pages }}
+    </div>
+    {% endif %}
+
 
     {% if upload_count %}
     <div class="upload-count">
