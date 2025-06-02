@@ -1,14 +1,12 @@
-FROM python:3.12-slim
+FROM python:3.11-slim-bookworm
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+ADD . /app
 
 WORKDIR /app
+RUN uv sync --locked
 
-COPY requirements.txt .
+# Place executables in the environment at the front of the path
+ENV PATH="/app/.venv/bin:$PATH"
 
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-ENV FLASK_RUN_HOST=0.0.0.0
-ENV FLASK_APP=app/main.py
-
-CMD ["flask", "run"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0"]
