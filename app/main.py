@@ -1,8 +1,8 @@
-from fastapi import FastAPI, Request, Form, UploadFile, File, Depends
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request, UploadFile, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from app.tfidf import TFIDFCalculator
-from typing import Optional
 from dotenv import load_dotenv
 import uuid
 import os
@@ -14,28 +14,32 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 load_dotenv()
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all, checkfirst=True)
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 tfidf_calculator = TFIDFCalculator()
 templates = Jinja2Templates(directory="app/templates")
 document_store: dict[str, str] = {}
 
-@app.on_event("startup")
-async def startup_event():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all, checkfirst=True)
 
 @app.post("/upload", response_class=HTMLResponse)
-async def upload_file(request: Request, text: Optional[str] = Form(None), file: Optional[UploadFile] = File(None), session: AsyncSession = Depends(get_session)):
+async def upload_file(request: Request, file: UploadFile, session: AsyncSession = Depends(get_session)):
     try:
-        if text is None and file is not None:
-            text = (await file.read()).decode('utf-8')
-        elif text is None:
-            text = ""
+        text: str = (await file.read()).decode('utf-8')
+        if not text.strip():
+            return {"error": "File is empty or contains only whitespace."}
+        
         text_hash = hashlib.sha256(text.encode('utf-8')).hexdigest()
         existing = await session.execute(select(Document).where(Document.hash == text_hash))
         existing_doc = existing.scalar_one_or_none()
         if existing_doc:
             return RedirectResponse(url=f"/result/{existing_doc.id}", status_code=303)
+        
         document_id = str(uuid.uuid4())
         doc = Document(id=document_id, text=text, hash=text_hash)
         session.add(doc)
@@ -44,18 +48,24 @@ async def upload_file(request: Request, text: Optional[str] = Form(None), file: 
     except Exception as e:
         return templates.TemplateResponse("index.html", {"request": request, "error": str(e)})
 
+per_page = 50
 @app.get("/result/{document_id}", response_class=HTMLResponse)
 async def view_result(request: Request, document_id: str, page: int = 1, session: AsyncSession = Depends(get_session)):
     result = await session.execute(select(Document).where(Document.id == document_id))
     doc = result.scalar_one_or_none()
-    text = doc.text if doc else ""
+    
+    if not doc:
+        return {"error": "Document not found."}
+    
+    text = doc.text
     is_duplicate = hash(text) in tfidf_calculator.document_hashes
     tfidf_result = tfidf_calculator.calculate_tfidf(text)
-    per_page = 50
+
     start = (page - 1) * per_page
     end = start + per_page
     paginated_result = tfidf_result[start:end]
     total_pages = (len(tfidf_result) + per_page - 1) // per_page
+    
     return templates.TemplateResponse("index.html", {
         "request": request,
         "result": paginated_result,
