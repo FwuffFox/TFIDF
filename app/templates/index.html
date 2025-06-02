@@ -167,16 +167,14 @@
     {% if result %}
     <div class="pagination">
         {% if page > 1 %}
-        <form method="post" action="/upload">
-            <input type="hidden" name="text" value="{{ text }}">
+        <form method="get" action="/result/{{ document_id }}">
             <input type="hidden" name="page" value="{{ page - 1 }}">
             <button type="submit">← Назад</button>
         </form>
         {% endif %}
 
         {% if page < total_pages %}
-        <form method="post" action="/upload">
-            <input type="hidden" name="text" value="{{ text }}">
+        <form method="get" action="/result/{{ document_id }}">
             <input type="hidden" name="page" value="{{ page + 1 }}">
             <button type="submit">Вперёд →</button>
         </form>
