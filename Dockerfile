@@ -1,12 +1,15 @@
 FROM python:3.11-slim-bookworm
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-ADD . /app
-
 WORKDIR /app
-RUN uv sync --locked
 
-# Place executables in the environment at the front of the path
-ENV PATH="/app/.venv/bin:$PATH"
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0"]
+# Install dependencies and create virtual environment
+RUN uv sync --frozen
+
+# Copy application code
+COPY . .
+
+CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

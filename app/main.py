@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 import uuid
 import os
 import hashlib
-from app.db import get_session
-from app.db_models import Document
+from app.db import get_session, engine
+from app.db_models import Document, Base
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +18,11 @@ app = FastAPI()
 tfidf_calculator = TFIDFCalculator()
 templates = Jinja2Templates(directory="app/templates")
 document_store: dict[str, str] = {}
+
+@app.on_event("startup")
+async def startup_event():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all, checkfirst=True)
 
 @app.post("/upload", response_class=HTMLResponse)
 async def upload_file(request: Request, text: Optional[str] = Form(None), file: Optional[UploadFile] = File(None), session: AsyncSession = Depends(get_session)):
