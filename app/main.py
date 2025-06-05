@@ -2,29 +2,26 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, UploadFile, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from app.tfidf import TFIDFCalculator
 from dotenv import load_dotenv
 import uuid
 import os
 import hashlib
 from app.db import get_session, engine
-from app.db_models import Document, Base
-from sqlalchemy.future import select
+from app.db.models import Corpus, Document, Base
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 load_dotenv()
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI, session: AsyncSession = Depends(get_session)):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all, checkfirst=True)
     yield
 
 
 app = FastAPI(lifespan=lifespan)
-tfidf_calculator = TFIDFCalculator()
 templates = Jinja2Templates(directory="app/templates")
-document_store: dict[str, str] = {}
 
 
 @app.post("/upload", response_class=HTMLResponse)
