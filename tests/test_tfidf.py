@@ -1,10 +1,13 @@
+import hashlib
 import math
+
 import pytest
 import pytest_asyncio
-import hashlib
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy import select
-from app.db.models import Base, User, Corpus, Document, WordFrequency
+from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
+                                    create_async_engine)
+
+from app.db.models import Base, Corpus, Document, User, WordFrequency
 from app.tfidf import process_new_document
 
 # Test database URL - use in-memory SQLite for testing

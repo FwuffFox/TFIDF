@@ -1,10 +1,12 @@
 import math
-from collections import Counter
-from sqlalchemy import func, distinct, select
-from sqlalchemy.ext.asyncio import AsyncSession
 import re
+from collections import Counter
+
+from sqlalchemy import distinct, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Document, WordFrequency
+
 
 async def process_new_document(session: AsyncSession, document: Document):
     text = document.text

@@ -9,6 +9,16 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  valkey:
+    image: valkey/valkey:latest
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "6379:6379"
+    depends_on:
+      - db
+
   app:
     build: .
     env_file:
@@ -17,6 +27,7 @@ services:
       - "8000:8000"
     depends_on:
       - db
+      - valkey
 
 volumes:
   pgdata:

@@ -1,13 +1,18 @@
-from app.db.models import Document, WordFrequency
+import time
+
 from sqlalchemy import distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.models import Document, WordFrequency
+from app.metrics import process_metrics
 from app.tfidf import process_new_document
+
 
 async def process_document(session: AsyncSession, corpus_id: str, filename: str, text: str) -> Document:
     """
     Process the document text and return a Document object.
     """
+    start = time.time()
     if not text.strip():
         raise ValueError("Document text cannot be empty or whitespace.")
     
@@ -32,6 +37,8 @@ async def process_document(session: AsyncSession, corpus_id: str, filename: str,
     await process_new_document(session, document)
 
     await session.commit()
+
+    await process_metrics(time.time() - start)
 
     return document
 

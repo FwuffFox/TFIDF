@@ -1,7 +1,10 @@
-from sqlalchemy import Column, String, Text, Integer, Float, ForeignKey, DateTime
-from sqlalchemy.orm import DeclarativeBase, relationship
-from datetime import datetime
 import uuid
+from datetime import datetime
+
+from sqlalchemy import (Column, DateTime, Float, ForeignKey, Integer, String,
+                        Text)
+from sqlalchemy.orm import DeclarativeBase, relationship
+
 
 class Base(DeclarativeBase):
     pass
