@@ -1,33 +1,39 @@
-# Lesta-Flask-tfidf
+# TFIDF
 
-Веб-приложение для загрузки текстовых файлов и анализа их содержимого с использованием алгоритма **TF-IDF**. Интерфейс позволяет просматривать значения Term Frequency (TF) и Inverse Document Frequency (IDF) для каждого уникального слова в тексте.
+Веб-приложение для загрузки текстовых файлов и анализа их содержимого с использованием алгоритма **TF-IDF**. Интерфейс позволяет просматривать значения Term Frequency (TF) и Inverse Document Frequency (IDF) для каждого уникального слова в документе внутри корпуса.
 
+## ВЕРСИЯ 1.0.0
 
-```bash
-# Клонируйте репозиторий
-git clone https://github.com/FwuffFox/Lesta-Flask-tfidf.git
-cd Lesta-Flask-tfidf
+## Структура проекта
 
-# Активация venv
-python3 -m venv venv
-source venv/bin/activate
+Приложение реализовано с помощью фреймворка FastAPI. Данные о загруженных файлах и их содержимом хранятся в базе данных PostgreSQL. Метрики хранятся в Valkey (Opensource Redis).
 
-# Установите зависимости
-pip install -r requirements.txt
+## Установка и запуск
+1. Клонируйте репозиторий:
+   ```bash
+   git clone git@github.com:FwuffFox/TFIDF.git
+    cd TFIDF
+    ```
+2. Скопируйте файл `.env.example` в `.env` и настройте параметры подключения к базе данных и Valkey:
+   ```bash
+   cp .env.example .env
+   ```
 
-# Запустите сервер
-FLASK_APP=app/main.py flask run
-```
+3. Если установлен Docker, запустите контейнеры с помощью Docker Compose:
+   ```bash
+   docker-compose up --build
+   ```
+   Это создаст и запустит контейнеры для приложения, базы данных PostgreSQL и Valkey.
+4. Если Docker не установлен, установите PostgreSQL и Valkey локально, затем используйте uv для установки зависимостей и запуска приложения:
+   ```bash
+   uv sync
+   source .venv/bin/activate
+   uvi run app.main:app --host 0.0.0.0
+   ```
 
-Или с использованием Docker:
+## Конфигурируемые параметры
 
-```bash
-# Клонируйте репозиторий
-git clone https://github.com/FwuffFox/Lesta-Flask-tfidf.git
-cd Lesta-Flask-tfidf
+Роль конфигурируемых параметров можно посмотреть в файле '.env.example'.
 
-# Соберите образ
-docker build -t lesta-flask-tfidf .
-# Запустите контейнер
-docker run -p 5000:5000 lesta-flask-tfidf
-```
+## Changelog
+- **Версия 1.0.0**: В приложение реализованна интеграция с Valkey (Opensource Redis) для хранения метрик, а также PostgreSQL для хранения загруженных файлов и их содержимого. Добавлена возможность просмотра метрик. Созданы основы для создания пользователей и корпусов. Улучшена контейнеризация приложения с помощью Docker Compose. Добавлены тесты для проверки функциональности.
