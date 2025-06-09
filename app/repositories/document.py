@@ -24,6 +24,21 @@ class DocumentRepository:
             select(Document).where(Document.id == document_id)
         )
         return result.scalar_one_or_none()
+    
+    async def get_by_hash(self, hash_value: str) -> Optional[Document]:
+        """
+        Retrieve a document by its hash value.
+        
+        Args:
+            hash_value (str): The hash value of the document to retrieve.
+            
+        Returns:
+            Optional[Document]: The Document object if found, otherwise None.
+        """
+        result = await self.session.execute(
+            select(Document).where(Document.hash == hash_value)
+        )
+        return result.scalar_one_or_none()
 
     async def get_by_corpus(self, corpus_id: str, offset: int = 0, limit: int = 50) -> Sequence[Document]:
         """
@@ -65,8 +80,20 @@ class DocumentRepository:
             .limit(limit)
         )
         return result.scalars().all()
-
-    async def create(self, document: Document):
+    
+    async def create(self, user_id: str, title: str, file_hash: str) -> Document:
+        """
+        Create a new document with the given user ID, title, and hash.
+        
+        Args:
+            user_id (str): The ID of the user creating the document.
+            title (str): The title of the document.
+            hash (str): The hash value of the document content.
+            
+        Returns:
+            Document: The created Document object.
+        """
+        document = Document(user_id=user_id, title=title, hash=file_hash)
         self.session.add(document)
         await self.session.commit()
         await self.session.refresh(document)

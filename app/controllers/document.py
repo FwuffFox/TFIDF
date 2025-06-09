@@ -1,8 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from importlib.metadata import FileHash
+
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
 
 from app.dependencies import get_document_repository
 from app.repositories.document import DocumentRepository
 from app.utils.auth import AuthenticatedUser
+from app.utils import hash_file_md5
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -28,6 +31,27 @@ async def list_documents(
     """
     documents = await doc_repo.get_by_user(user.id, offset=offset, limit=limit)
     return [{"id": d.id, "filename": d.filename} for d in documents]
+
+@router.post("/")
+async def create_document(
+    user: AuthenticatedUser,
+    title: str,
+    file: UploadFile,
+    doc_repo: DocumentRepository = Depends(get_document_repository),
+):
+    filebytes = await file.read()
+    file_hash = hash_file_md5(user.id, filebytes)
+    if await doc_repo.get_by_hash(file_hash):
+        raise HTTPException(
+            status_code=400, detail="Document with same content already exists"
+        )
+    
+    # TODO: Add file to persistent storage (e.g., S3, local filesystem)
+    
+    document = await doc_repo.create(user.id, title, file_hash)
+    
+    # TODO: Calculate tf
+    return {"status": "created"}
 
 
 @router.get("/{document_id}")
