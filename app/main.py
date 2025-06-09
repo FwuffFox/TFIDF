@@ -6,6 +6,9 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.controllers.collection import router as collection_router
+from app.controllers.document import router as document_router
+from app.controllers.user import router as user_router
 from app.db import engine, get_session
 from app.db.models import Base
 from app.valkey import valkey_instance as valkey
@@ -22,6 +25,11 @@ async def lifespan(app: FastAPI, session: AsyncSession = Depends(get_session)):
 
 app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="app/templates")
+
+# Include routers for controllers
+app.include_router(collection_router)
+app.include_router(document_router)
+app.include_router(user_router)
 
 
 @app.get("/")

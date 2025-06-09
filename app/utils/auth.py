@@ -12,7 +12,7 @@ from app.dependencies import get_user_repository
 from app.repositories.user import UserRepository
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/user/login")
 
 
 def hash_password(password: str) -> str:
@@ -39,7 +39,7 @@ def create_access_token(data: dict) -> str:
     to_encode.update({"exp": expires_delta})
     encoded_jwt = jwt.encode(
         to_encode,
-        os.getenv("JWT_SECRET_KEY"),
+        os.getenv("AUTH_JWT_SECRET"),
         algorithm=os.getenv("AUTH_ALGORITHM", "HS256"),
     )
     return encoded_jwt
@@ -57,16 +57,16 @@ async def get_current_user(
     try:
         payload = jwt.decode(
             token,
-            os.getenv("JWT_SECRET_KEY"),
+            os.getenv("AUTH_JWT_SECRET"),
             algorithms=[os.getenv("AUTH_ALGORITHM", "HS256")],
         )
-        user_id: str = payload.get("sub")
-        if user_id is None:
+        user_name: str = payload.get("sub")
+        if user_name is None:
             raise credentials_exception
     except jwt.PyJWTError:
         raise credentials_exception
 
-    user = await user_repo.get(user_id)
+    user = await user_repo.get_by_username(user_name)
     if user is None:
         raise credentials_exception
     return user

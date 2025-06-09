@@ -1,4 +1,5 @@
 from typing import Sequence
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -45,7 +46,7 @@ class DocumentRepository:
             await self.session.delete(document)
             await self.session.commit()
         return document
-    
+
     async def get_statistics(self, document_id: str) -> Sequence[WordFrequency]:
         """
         Retrieve word frequency statistics for a specific document.
