@@ -1,63 +1,94 @@
 import uuid
 from datetime import datetime
-
-from sqlalchemy import (Column, DateTime, Float, ForeignKey, Integer, String,
-                        Text)
-from sqlalchemy.orm import DeclarativeBase, relationship
+from sqlalchemy import String, Text, DateTime, Float, Integer, ForeignKey
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
     pass
 
+
 class User(Base):
-    __tablename__ = 'users'
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    username = Column(String(50), unique=True, nullable=False, index=True)
-    password = Column(String(255), nullable=False)  # Bcrypted password
-    email = Column(String(100), unique=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    username: Mapped[str] = mapped_column(
+        String(50), unique=True, nullable=False, index=True
+    )
+    password_hash: Mapped[str] = mapped_column(
+        String(255), nullable=False
+    )  # Bcrypted password
+    email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
     # Relationships
-    corpuses = relationship("Corpus", back_populates="user")
+    corpuses: Mapped[list["Corpus"]] = relationship(
+        "Corpus", back_populates="user", cascade="all, delete-orphan"
+    )
+    documents: Mapped[list["Document"]] = relationship(
+        "Document", back_populates="user", cascade="all, delete-orphan"
+    )
+
 
 class Corpus(Base):
-    __tablename__ = 'corpuses'
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    name = Column(String(100), nullable=False)
-    description = Column(Text)
-    user_id = Column(String, ForeignKey('users.id'), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
+    __tablename__ = "corpuses"
+
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
     # Relationships
-    user = relationship("User", back_populates="corpuses")
-    documents = relationship("Document", back_populates="corpus")
+    user: Mapped[User] = relationship("User", back_populates="corpuses")
+    documents: Mapped[list["Document"]] = relationship(
+        "Document", back_populates="corpus"
+    )
+
 
 class Document(Base):
-    __tablename__ = 'documents'
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    filename = Column(String(255))
-    text = Column(Text, nullable=False)
-    hash = Column(String, unique=True, index=True, nullable=False)
-    corpus_id = Column(String, ForeignKey('corpuses.id'), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
+    __tablename__ = "documents"
+
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    filename: Mapped[str | None] = mapped_column(String(255))
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    hash: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    corpus_id: Mapped[str] = mapped_column(
+        String, ForeignKey("corpuses.id"), nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
     # Relationships
-    corpus = relationship("Corpus", back_populates="documents")
-    word_frequencies = relationship("WordFrequency", back_populates="document")
+    corpus: Mapped[Corpus] = relationship("Corpus", back_populates="documents")
+    user: Mapped[User] = relationship("User", back_populates="documents")
+    word_frequencies: Mapped[list["WordFrequency"]] = relationship(
+        "WordFrequency", back_populates="document"
+    )
+
 
 class WordFrequency(Base):
-    __tablename__ = 'word_frequencies'
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    word = Column(String(100), nullable=False, index=True)
-    frequency = Column(Integer, nullable=False)
-    tf_score = Column(Float)
-    idf_score = Column(Float) 
-    tfidf_score = Column(Float)
-    document_id = Column(String, ForeignKey('documents.id'), nullable=False)
-    
+    __tablename__ = "word_frequencies"
+
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    word: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    frequency: Mapped[int] = mapped_column(Integer, nullable=False)
+    tf_score: Mapped[float | None] = mapped_column(Float)
+    idf_score: Mapped[float | None] = mapped_column(Float)
+    tfidf_score: Mapped[float | None] = mapped_column(Float)
+    document_id: Mapped[str] = mapped_column(
+        String, ForeignKey("documents.id"), nullable=False
+    )
+
     # Relationships
-    document = relationship("Document", back_populates="word_frequencies")
+    document: Mapped[Document] = relationship(
+        "Document", back_populates="word_frequencies"
+    )
