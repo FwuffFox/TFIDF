@@ -44,9 +44,9 @@ class Corpus(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships
-    user: Mapped[User] = relationship("User", back_populates="corpuses")
+    user: Mapped[User] = relationship("User", back_populates="corpuses", cascade="all, delete-orphan")
     documents: Mapped[list["Document"]] = relationship(
-        "Document", back_populates="corpus"
+        "Document", back_populates="corpus", cascade="all, delete-orphan"
     )
 
 
@@ -66,10 +66,10 @@ class Document(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationships
-    corpus: Mapped[Corpus] = relationship("Corpus", back_populates="documents")
-    user: Mapped[User] = relationship("User", back_populates="documents")
+    corpus: Mapped[Corpus] = relationship("Corpus", back_populates="documents", cascade="all, delete-orphan")
+    user: Mapped[User] = relationship("User", back_populates="documents", cascade="all, delete-orphan")
     word_frequencies: Mapped[list["WordFrequency"]] = relationship(
-        "WordFrequency", back_populates="document"
+        "WordFrequency", back_populates="document", cascade="all, delete-orphan"
     )
 
 
@@ -90,5 +90,5 @@ class WordFrequency(Base):
 
     # Relationships
     document: Mapped[Document] = relationship(
-        "Document", back_populates="word_frequencies"
+        "Document", back_populates="word_frequencies", cascade="all, delete-orphan"
     )

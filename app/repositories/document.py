@@ -1,7 +1,8 @@
+from typing import Sequence
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Document
+from app.db.models import Document, WordFrequency
 
 
 class DocumentRepository:
@@ -44,3 +45,12 @@ class DocumentRepository:
             await self.session.delete(document)
             await self.session.commit()
         return document
+    
+    async def get_statistics(self, document_id: str) -> Sequence[WordFrequency]:
+        """
+        Retrieve word frequency statistics for a specific document.
+        """
+        result = await self.session.execute(
+            select(WordFrequency).where(WordFrequency.document_id == document_id)
+        )
+        return result.scalars().all()
