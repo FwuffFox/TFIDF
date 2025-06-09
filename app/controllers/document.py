@@ -11,8 +11,22 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 async def list_documents(
     user: AuthenticatedUser,
     doc_repo: DocumentRepository = Depends(get_document_repository),
-):
-    documents = await doc_repo.get_all_from_user(user.id)
+    offset: int = 0,
+    limit: int = 100,
+) -> list[dict[str, str]]:
+    """
+    List documents for the authenticated user.
+    
+    Args:
+        user (AuthenticatedUser): The authenticated user.
+        doc_repo (DocumentRepository): Dependency to access the document repository.
+        offset (int): The number of records to skip (for pagination).
+        limit (int): The maximum number of records to return.
+        
+    Returns:
+        List[Dict[str, str]]: A list of documents with their IDs and filenames.
+    """
+    documents = await doc_repo.get_by_user(user.id, offset=offset, limit=limit)
     return [{"id": d.id, "filename": d.filename} for d in documents]
 
 
@@ -22,6 +36,17 @@ async def get_document(
     document_id: str,
     repo: DocumentRepository = Depends(get_document_repository),
 ):
+    """
+    Retrieve a specific document by its ID for the authenticated user.
+    
+    Args:
+        user (AuthenticatedUser): The authenticated user.
+        document_id (str): The ID of the document to retrieve.
+        repo (DocumentRepository): Dependency to access the document repository.
+        
+    Returns:
+        Dict[str, str]: A dictionary containing the document's ID, filename, and text.
+    """
     document = await repo.get(document_id)
 
     if not document:

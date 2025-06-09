@@ -1,4 +1,4 @@
-from typing import Sequence
+from typing import Sequence, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,22 +10,54 @@ class DocumentRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get(self, document_id: str):
+    async def get(self, document_id: str) -> Optional[Document]:
+        """
+        Retrieve a document by its ID.
+        
+        Args:
+            document_id (str): The ID of the document to retrieve.
+            
+        Returns:
+            Optional[Document]: The Document object if found, otherwise None.
+        """
         result = await self.session.execute(
             select(Document).where(Document.id == document_id)
         )
         return result.scalar_one_or_none()
 
-    async def get_all(self, corpus_id: str, offset: int = 0, limit: int = 50):
+    async def get_by_corpus(self, corpus_id: str, offset: int = 0, limit: int = 50) -> Sequence[Document]:
+        """
+        Retrieve documents associated with a specific corpus.
+        
+        Args:
+            corpus_id (str): The ID of the corpus to filter documents by.
+            offset (int): The number of records to skip (for pagination).
+            limit (int): The maximum number of records to return.
+            
+        Returns:
+            Sequence[Document]: A sequence of Document objects associated with the specified corpus.
+        """
         result = await self.session.execute(
             select(Document)
-            .where(Document.corpus_id == corpus_id)
+            .join(Document.corpuses)
+            .where(Document.corpuses.any(id=corpus_id))
             .offset(offset)
             .limit(limit)
         )
         return result.scalars().all()
 
-    async def get_all_from_user(self, user_id: str, offset: int = 0, limit: int = 50):
+    async def get_by_user(self, user_id: str, offset: int = 0, limit: int = 50) -> Sequence[Document]:
+        """
+        Retrieve documents associated with a specific user.
+        
+        Args:
+            user_id (str): The ID of the user to filter documents by.
+            offset (int): The number of records to skip (for pagination).
+            limit (int): The maximum number of records to return.
+            
+        Returns:
+            Sequence[Document]: A sequence of Document objects associated with the specified user.
+        """
         result = await self.session.execute(
             select(Document)
             .where(Document.user_id == user_id)
