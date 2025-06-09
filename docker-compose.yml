@@ -8,6 +8,11 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   valkey:
     image: valkey/valkey:latest
@@ -26,8 +31,10 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - db
-      - valkey
+      db:
+        condition: service_healthy
+      valkey:
+        condition: service_started
 
 volumes:
   pgdata:
