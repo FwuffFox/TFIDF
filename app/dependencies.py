@@ -34,3 +34,19 @@ def get_storage_service():
     from app.utils.storage import FileStorage
 
     return FileStorage(os.getenv("STORAGE_FOLDER"))
+
+
+def get_cache_storage():
+    from app.utils.valkey import valkey_instance
+    
+    return valkey_instance
+
+
+def get_token_manager(valkey_service=Depends(get_cache_storage)):
+    """
+    Provides a token manager instance for handling token operations.
+    """
+
+    from app.utils.token_manager import TokenManager
+    return TokenManager(valkey_service)
+

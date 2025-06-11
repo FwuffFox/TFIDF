@@ -6,9 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
-from app.dependencies import get_user_repository
+from app.dependencies import get_token_manager, get_user_repository
 from app.repositories.user import UserRepository
-from app.utils.auth import AuthenticatedUser, create_access_token
+from app.utils.auth import AuthenticatedUser, create_access_token, oauth2_scheme
+from app.utils.token_manager import TokenManager
 
 router = APIRouter(prefix="/user", tags=["user"])
 
@@ -60,10 +61,23 @@ async def get_current_user(user: AuthenticatedUser):
     return user
 
 
-@router.get("/logout")
-async def logout(user: AuthenticatedUser):
-    # TODO: реализовать логаут
-    return {"status": "logged out"}
+@router.post("/logout")
+async def logout(
+    user: AuthenticatedUser, 
+    token: str = Depends(oauth2_scheme),
+    token_manager: TokenManager = Depends(get_token_manager)
+):
+    """
+    Logout endpoint that blacklists the current token.
+
+    This effectively logs out the user by invalidating their current access token.
+    The token will be added to a blacklist and won't be usable for authentication anymore.
+    """
+    success = await token_manager.blacklist_token(token)
+    if success:
+        return {"status": "logged out successfully"}
+    else:
+        raise HTTPException(status_code=400, detail="Logout failed")
 
 
 @router.patch("/{user_id}")

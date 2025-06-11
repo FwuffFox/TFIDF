@@ -8,8 +8,9 @@ from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 
 from app.db.models import User
-from app.dependencies import get_user_repository
+from app.dependencies import get_token_manager, get_user_repository
 from app.repositories.user import UserRepository
+from app.utils.token_manager import TokenManager
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/user/login")
@@ -48,12 +49,18 @@ def create_access_token(data: dict) -> str:
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
     user_repo: UserRepository = Depends(get_user_repository),
+    token_manager: TokenManager = Depends(get_token_manager),
 ) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    
+    # Check if token is blacklisted
+    if await token_manager.is_token_blacklisted(token):
+        raise credentials_exception
+        
     try:
         payload = jwt.decode(
             token,
