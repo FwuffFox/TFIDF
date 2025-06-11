@@ -1,4 +1,4 @@
-from typing import Sequence, Optional
+from typing import Optional, Sequence
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,10 +13,10 @@ class DocumentRepository:
     async def get(self, document_id: str) -> Optional[Document]:
         """
         Retrieve a document by its ID.
-        
+
         Args:
             document_id (str): The ID of the document to retrieve.
-            
+
         Returns:
             Optional[Document]: The Document object if found, otherwise None.
         """
@@ -24,14 +24,14 @@ class DocumentRepository:
             select(Document).where(Document.id == document_id)
         )
         return result.scalar_one_or_none()
-    
+
     async def get_by_hash(self, hash_value: str) -> Optional[Document]:
         """
         Retrieve a document by its hash value.
-        
+
         Args:
             hash_value (str): The hash value of the document to retrieve.
-            
+
         Returns:
             Optional[Document]: The Document object if found, otherwise None.
         """
@@ -40,15 +40,17 @@ class DocumentRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_corpus(self, corpus_id: str, offset: int = 0, limit: int = 50) -> Sequence[Document]:
+    async def get_by_corpus(
+        self, corpus_id: str, offset: int = 0, limit: int = 50
+    ) -> Sequence[Document]:
         """
         Retrieve documents associated with a specific corpus.
-        
+
         Args:
             corpus_id (str): The ID of the corpus to filter documents by.
             offset (int): The number of records to skip (for pagination).
             limit (int): The maximum number of records to return.
-            
+
         Returns:
             Sequence[Document]: A sequence of Document objects associated with the specified corpus.
         """
@@ -61,15 +63,17 @@ class DocumentRepository:
         )
         return result.scalars().all()
 
-    async def get_by_user(self, user_id: str, offset: int = 0, limit: int = 50) -> Sequence[Document]:
+    async def get_by_user(
+        self, user_id: str, offset: int = 0, limit: int = 50
+    ) -> Sequence[Document]:
         """
         Retrieve documents associated with a specific user.
-        
+
         Args:
             user_id (str): The ID of the user to filter documents by.
             offset (int): The number of records to skip (for pagination).
             limit (int): The maximum number of records to return.
-            
+
         Returns:
             Sequence[Document]: A sequence of Document objects associated with the specified user.
         """
@@ -80,16 +84,16 @@ class DocumentRepository:
             .limit(limit)
         )
         return result.scalars().all()
-    
+
     async def create(self, user_id: str, title: str, file_hash: str) -> Document:
         """
         Create a new document with the given user ID, title, and hash.
-        
+
         Args:
             user_id (str): The ID of the user creating the document.
             title (str): The title of the document.
             hash (str): The hash value of the document content.
-            
+
         Returns:
             Document: The created Document object.
         """
@@ -114,3 +118,25 @@ class DocumentRepository:
             select(WordFrequency).where(WordFrequency.document_id == document_id)
         )
         return result.scalars().all()
+
+    async def update_location(
+        self, document_id: str, location: str
+    ) -> Optional[Document]:
+        """
+        Update the file location for a document.
+
+        Args:
+            document_id (str): The ID of the document to update.
+            location (str): The file location to set.
+
+        Returns:
+            Optional[Document]: The updated Document object if found, otherwise None.
+        """
+        document = await self.get(document_id)
+        if not document:
+            return None
+
+        document.location = location
+        self.session.add(document)
+        await self.session.commit()
+        return document

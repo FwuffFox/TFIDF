@@ -3,7 +3,8 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Table, Text
+from sqlalchemy import (Column, DateTime, Float, ForeignKey, Integer, String,
+                        Table, Text)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -14,8 +15,8 @@ class Base(DeclarativeBase):
 document_corpus_association_table = Table(
     "document_corpus_association_table",
     Base.metadata,
-    Column("document_id", ForeignKey("document.id"), primary_key=True),
-    Column("corpus_id", ForeignKey("corpus.id"), primary_key=True),
+    Column("document_id", ForeignKey("documents.id"), primary_key=True),
+    Column("corpus_id", ForeignKey("corpuses.id"), primary_key=True),
 )
 
 

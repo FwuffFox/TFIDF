@@ -1,3 +1,5 @@
+import os
+
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,3 +22,9 @@ def get_corpus_repository(session: AsyncSession = Depends(get_session)):
     from app.repositories.corpus import CorpusRepository
 
     return CorpusRepository(session)
+
+
+def get_storage_service():
+    from app.utils.storage import FileStorage
+
+    return FileStorage(os.getenv("STORAGE_FOLDER"))
