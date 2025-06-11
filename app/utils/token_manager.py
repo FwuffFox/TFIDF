@@ -53,4 +53,3 @@ class TokenManager:
         """
         key = f"{BLACKLIST_KEY_PREFIX}{token}"
         return await self.cache_storage.exists(key) == 1
-

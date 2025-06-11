@@ -2,7 +2,7 @@ import os
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.templating import Jinja2Templates
 
 from app.controllers.collection import router as collection_router
@@ -10,7 +10,7 @@ from app.controllers.document import router as document_router
 from app.controllers.user import router as user_router
 from app.db import engine
 from app.db.models import Base
-from app.utils.valkey import valkey_instance as valkey
+from app.dependencies import get_cache_storage
 
 load_dotenv()
 
@@ -51,14 +51,14 @@ async def version(request: Request):
 
 
 @app.get("/metrics")
-async def metrics(request: Request):
-    files_processed = (await valkey.get("files_processed")) or 0
-    min_time = await valkey.get("min_processing_time")
-    max_time = (await valkey.get("max_processing_time")) or 0
-    average_time = (await valkey.get("average_processing_time")) or 0
-    last_time = (await valkey.get("last_processing_time")) or 0
+async def metrics(request: Request, cache=Depends(get_cache_storage)):
+    files_processed = (await cache.get("files_processed")) or 0
+    min_time = await cache.get("min_processing_time")
+    max_time = (await cache.get("max_processing_time")) or 0
+    average_time = (await cache.get("average_processing_time")) or 0
+    last_time = (await cache.get("last_processing_time")) or 0
     latest_file_timestamp = (
-        await valkey.get("latest_file_processed_timestamp")
+        await cache.get("latest_file_processed_timestamp")
     ) or "N/A"
 
     # Handle infinity case for JSON serialization

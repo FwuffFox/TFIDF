@@ -1,8 +1,8 @@
 import os
 
-from valkey.asyncio import Valkey
+from valkey.asyncio import Redis
 
-valkey_instance = Valkey(
+cache_storage = Redis(
     host=os.getenv("VALKEY_HOST", "localhost"),
     port=int(os.getenv("VALKEY_PORT", 6379)),
     db=int(os.getenv("VALKEY_DB", 0)),

@@ -8,7 +8,8 @@ from pydantic import BaseModel
 
 from app.dependencies import get_token_manager, get_user_repository
 from app.repositories.user import UserRepository
-from app.utils.auth import AuthenticatedUser, create_access_token, oauth2_scheme
+from app.utils.auth import (AuthenticatedUser, create_access_token,
+                            oauth2_scheme)
 from app.utils.token_manager import TokenManager
 
 router = APIRouter(prefix="/user", tags=["user"])
@@ -63,9 +64,9 @@ async def get_current_user(user: AuthenticatedUser):
 
 @router.post("/logout")
 async def logout(
-    user: AuthenticatedUser, 
+    user: AuthenticatedUser,
     token: str = Depends(oauth2_scheme),
-    token_manager: TokenManager = Depends(get_token_manager)
+    token_manager: TokenManager = Depends(get_token_manager),
 ):
     """
     Logout endpoint that blacklists the current token.

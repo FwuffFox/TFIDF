@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import Depends
@@ -7,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import async_session
 
 
+@asynccontextmanager
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session() as session:
         yield session
@@ -36,17 +38,19 @@ def get_storage_service():
     return FileStorage(os.getenv("STORAGE_FOLDER"))
 
 
-def get_cache_storage():
-    from app.utils.valkey import valkey_instance
-    
-    return valkey_instance
+@asynccontextmanager
+async def get_cache_storage():
+    from app.utils.cache import cache_storage
+
+    async with cache_storage as cache_storage:
+        yield cache_storage
 
 
-def get_token_manager(valkey_service=Depends(get_cache_storage)):
+def get_token_manager(cache_storage=Depends(get_cache_storage)):
     """
     Provides a token manager instance for handling token operations.
     """
 
     from app.utils.token_manager import TokenManager
-    return TokenManager(valkey_service)
 
+    return TokenManager(cache_storage)

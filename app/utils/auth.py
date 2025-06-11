@@ -56,11 +56,11 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
     # Check if token is blacklisted
     if await token_manager.is_token_blacklisted(token):
         raise credentials_exception
-        
+
     try:
         payload = jwt.decode(
             token,

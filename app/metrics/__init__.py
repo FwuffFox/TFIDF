@@ -1,6 +1,6 @@
 import time
 
-from app.utils.valkey import valkey_instance as valkey
+from app.utils.cache import valkey_instance as valkey
 
 
 async def process_metrics(time_taken: float):

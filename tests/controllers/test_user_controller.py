@@ -63,3 +63,20 @@ class TestUserController:
         response = await client.get("/user/me")
         assert response.status_code == 401
         assert response.json() == {"detail": "Not authenticated"}
+
+    async def test_logout_user(self, client):
+        if not hasattr(client, "access_token"):
+            pytest.skip("Access token not available. Skipping test_logout_user.")
+
+        response = await client.post(
+            "/user/logout", headers={"Authorization": f"Bearer {client.access_token}"}
+        )
+        assert response.status_code == 200
+        assert response.json() == {"status": "logged out successfully"}
+
+        # Verify that the access token is now invalid
+        response = await client.get(
+            "/user/me", headers={"Authorization": f"Bearer {client.access_token}"}
+        )
+        assert response.status_code == 401
+        assert response.json() == {"detail": "Could not validate credentials"}
