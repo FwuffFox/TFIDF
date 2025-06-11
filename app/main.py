@@ -34,7 +34,10 @@ app.include_router(user_router)
 
 @app.get("/")
 async def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    if os.getenv("ENV") == "development":
+        from starlette.responses import RedirectResponse
+        return RedirectResponse(url="/docs")   
+    return None
 
 
 @app.get("/status")

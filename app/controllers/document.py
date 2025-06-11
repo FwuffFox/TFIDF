@@ -309,3 +309,5 @@ async def get_document_statistics(
 
     statistics = await repo.get_statistics(document_id)
     return [{"word": stat.word, "frequency": stat.frequency} for stat in statistics]
+
+

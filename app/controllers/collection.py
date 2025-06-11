@@ -49,3 +49,4 @@ async def add_document_to_collection(collection_id: str, document_id: str):
 async def remove_document_from_collection(collection_id: str, document_id: str):
     # TODO: реализовать удаление документа из коллекции
     return {"status": "removed"}
+
