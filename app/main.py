@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.controllers.collection import router as collection_router
 from app.controllers.document import router as document_router
 from app.controllers.user import router as user_router
-from app.db import engine, get_session
+from app.db import engine
 from app.db.models import Base
 from app.valkey import valkey_instance as valkey
 
@@ -17,7 +17,7 @@ load_dotenv()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI, session: AsyncSession = Depends(get_session)):
+async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all, checkfirst=True)
     yield

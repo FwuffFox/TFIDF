@@ -3,12 +3,6 @@ import pytest
 from fastapi.testclient import TestClient
 from app.main import app
 
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-
 def test_version_endpoint(client, monkeypatch):
     # Test default version
     response = client.get("/version")
