@@ -1,6 +1,25 @@
 import pytest
 from fastapi.encoders import jsonable_encoder
 
+from app.controllers.utils.responses import response403
+
+
+async def login(client, user_data):
+    """
+    Helper function to log in a user and return the response. Stores access token in the client for further requests.
+    """
+    response = await client.post(
+        "/user/login",
+        data={
+            "username": user_data["username"],
+            "password": user_data["password"],
+        },
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert response.status_code == 200
+    client.access_token = response.json()["access_token"]
+    return response
+
 
 class TestUserController:
     @pytest.fixture(scope="class")
@@ -17,18 +36,11 @@ class TestUserController:
         assert response.json() == {"status": "registered"}
 
     async def test_login_user(self, client, user_data):
-        # For login, we need to use form data in the format expected by OAuth2PasswordRequestForm
-        response = await client.post(
-            "/user/login",
-            data={"username": user_data["username"], "password": user_data["password"]},
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-        )
+        response = await login(client, user_data)
         assert response.status_code == 200
         assert "access_token" in response.json()
         assert "token_type" in response.json()
-
-        # Store the access token for further tests
-        client.access_token = response.json()["access_token"]
+        
 
     async def test_get_current_user(self, client, user_data):
         if not hasattr(client, "access_token"):
@@ -80,3 +92,35 @@ class TestUserController:
         )
         assert response.status_code == 401
         assert response.json() == {"detail": "Could not validate credentials"}
+
+    async def test_change_password(self, client, user_data):
+        response = await login(client, user_data)
+
+        # Change password
+        response = await client.patch(
+            "/user/",
+            json={
+                "old_password": user_data["password"],
+                "new_password": "newpassword",
+            },
+            headers={"Authorization": f"Bearer {client.access_token}"},
+        )
+        assert response.status_code == 200
+        
+        assert response.json() == {"status": "password changed, all sessions invalidated"}
+        
+        # verify logged out
+        response = await client.get(
+            "/user/me", headers={"Authorization": f"Bearer {client.access_token}"}
+        )
+        assert response.status_code == 401
+        assert response.json() == {"detail": "Could not validate credentials"}
+
+        # Verify that the new password works
+        response = await client.post(
+            "/user/login",
+            data={"username": user_data["username"], "password": "newpassword"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert response.status_code == 200
+        assert "access_token" in response.json()

@@ -5,6 +5,8 @@ import jwt
 
 # Key prefix for blacklisted tokens
 BLACKLIST_KEY_PREFIX = "token:blacklist:"
+# Key prefix for user tokens
+USER_TOKEN_KEY_PREFIX = "user:tokens:"
 
 
 class TokenManager:
@@ -53,3 +55,22 @@ class TokenManager:
         """
         key = f"{BLACKLIST_KEY_PREFIX}{token}"
         return await self.cache_storage.exists(key) == 1
+
+    async def blacklist_all_user_tokens(self, username: str) -> bool:
+        """
+        Blacklist all tokens for a specific user.
+        This is useful when a user changes their password or is deleted.
+
+        Returns True if successful, False otherwise.
+        """
+        try:
+            # Create a pattern that blacklists all tokens for this user
+            # This will create a key in cache that can be checked during token validation
+            key = f"{USER_TOKEN_KEY_PREFIX}{username}:invalidated_before"
+            # Set the current time as the invalidation timestamp
+            current_time = datetime.now(timezone.utc).timestamp()
+            # Store for 30 days (typical token max lifetime)
+            await self.cache_storage.set(key, str(current_time), ex=2592000)  # 30 days in seconds
+            return True
+        except Exception:
+            return False

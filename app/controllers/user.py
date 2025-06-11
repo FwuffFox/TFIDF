@@ -31,6 +31,11 @@ class UserDTO(BaseModel):
     created_at: datetime
 
 
+class ChangePasswordDTO(BaseModel):
+    old_password: str
+    new_password: str
+
+
 @router.post("/register")
 async def register(
     dto: RegisterDTO, repo: UserRepository = Depends(get_user_repository)
@@ -81,15 +86,29 @@ async def logout(
         raise HTTPException(status_code=400, detail="Logout failed")
 
 
-@router.patch("/{user_id}")
+@router.patch("/")
 async def change_password(
-    user_id: str, new_password: str, repo: UserRepository = Depends(get_user_repository)
+    user: AuthenticatedUser,
+    data: ChangePasswordDTO,
+    token: str = Depends(oauth2_scheme),
+    repo: UserRepository = Depends(get_user_repository),
+    token_manager: TokenManager = Depends(get_token_manager)
 ):
-    # TODO: реализовать смену пароля
-    return {"status": "password changed"}
+    if not await repo.check_password(user, data.old_password):
+        raise HTTPException(status_code=401, detail="Invalid old password")
+    
+    await repo.change_password(user, data.new_password)
+    
+    # Blacklist all existing tokens for this user
+    await token_manager.blacklist_all_user_tokens(user.username)
+    
+    # Additionally blacklist the current token to force immediate logout
+    await token_manager.blacklist_token(token)
+    
+    return {"status": "password changed, all sessions invalidated"}
 
 
-@router.delete("/{user_id}")
+@router.delete("/")
 async def delete_user(
     user_id: str, repo: UserRepository = Depends(get_user_repository)
 ):

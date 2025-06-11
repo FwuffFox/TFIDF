@@ -10,7 +10,7 @@ from passlib.context import CryptContext
 from app.db.models import User
 from app.dependencies import get_token_manager, get_user_repository
 from app.repositories.user import UserRepository
-from app.utils.token_manager import TokenManager
+from app.utils.token_manager import TokenManager, USER_TOKEN_KEY_PREFIX, BLACKLIST_KEY_PREFIX
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/user/login")
@@ -36,8 +36,15 @@ def create_access_token(data: dict) -> str:
     """
     to_encode = data.copy()
     expire_time = os.getenv("AUTH_EXPIRE_MINUTES", "60")
-    expires_delta = datetime.now(timezone.utc) + timedelta(minutes=int(expire_time))
+    current_time = datetime.now(timezone.utc)
+    expires_delta = current_time + timedelta(minutes=int(expire_time))
+
+    # Add expiration time
     to_encode.update({"exp": expires_delta})
+
+    # Add issued-at time for token invalidation checks
+    to_encode.update({"iat": current_time.timestamp()})
+
     encoded_jwt = jwt.encode(
         to_encode,
         os.getenv("AUTH_JWT_SECRET"),
@@ -70,6 +77,20 @@ async def get_current_user(
         user_name: str = payload.get("sub")
         if user_name is None:
             raise credentials_exception
+
+        # Check if all tokens for this user have been invalidated
+        user_invalidation_key = f"{USER_TOKEN_KEY_PREFIX}{user_name}:invalidated_before"
+        invalidated_timestamp = await token_manager.cache_storage.get(user_invalidation_key)
+
+        if invalidated_timestamp:
+            # Convert to float for comparison
+            invalidated_time = float(invalidated_timestamp)
+            token_created_time = payload.get("iat", 0)
+
+            # If token was created before invalidation, reject it
+            if token_created_time and token_created_time < invalidated_time:
+                raise credentials_exception
+
     except jwt.PyJWTError:
         raise credentials_exception
 

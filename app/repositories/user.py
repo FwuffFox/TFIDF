@@ -39,7 +39,20 @@ class UserRepository:
         self.session.add(user)
         await self.session.commit()
         return user
+    
+    async def change_password(
+        self, user: User, new_password: str
+    ) -> User:
+        """
+        Change the password for the given user.
+        """
+        from app.utils.auth import hash_password
 
+        user.password_hash = hash_password(new_password)
+        self.session.add(user)
+        await self.session.commit()
+        return user
+    
     async def check_password(self, user: User, password: str) -> bool:
         """
         Check if the provided password matches the stored password hash.
