@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, Query, Path, 
 from fastapi.responses import StreamingResponse
 from typing import List, Dict
 from io import BytesIO
+import asyncio
 
 from app.dependencies import get_document_repository, get_storage_service
 from app.repositories.document import DocumentRepository
@@ -193,17 +194,17 @@ async def get_document(
     summary="Delete document",
     description="Deletes a specific document by its ID. The document must belong to the authenticated user.",
     responses={
-        200: {
-            "description": "Document successfully deleted",
+        202: {
+            "description": "Document deletion accepted",
             "content": {
                 "application/json": {
-                    "example": {"status": "deleted"}
+                    "example": {"status": "deletion_in_progress"}
                 }
             }
         },
         403: response403,
         404: response404,
-    }
+    },
 )
 async def delete_document(
     user: AuthenticatedUser,
@@ -236,13 +237,24 @@ async def delete_document(
     if document.user_id != user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Delete file from storage if it exists
-    if document.location:
-        await storage.delete_file(document.location)
-        
-    # Delete database record
-    await repo.delete(document_id)
-    return {"status": "deleted"}
+    async def delete_document_task():
+        try:
+            # Delete file from storage if it exists
+            tasks = []
+            if document.location:
+                 tasks.append(storage.delete_file(document.location)) # type: ignore
+                
+            # Delete database record
+            tasks.append(repo.delete(document_id))
+            
+            await asyncio.gather(*tasks)
+        except Exception as e:
+            print(f"Error during background deletion of document {document_id}: {str(e)}")
+    
+    # Create background task and return immediately
+    asyncio.create_task(delete_document_task())
+    
+    return {"status": "deletion_in_progress"}
 
 
 @router.get(
