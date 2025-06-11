@@ -44,3 +44,22 @@ class TestUserController:
         user_data = response.json()
         assert user_data["username"] == "testuser"
         assert user_data["email"] == "testemail"
+        
+    def test_register_existing_user(self, client, user_data):
+        # Attempt to register the same user again
+        response = client.post("/user/register", json=user_data)
+        assert response.status_code == 400
+        assert response.json() == {"detail": "Username already exists"}
+        
+    def test_login_invalid_user(self, client):
+        # Attempt to login with invalid credentials
+        response = client.post(
+            "/user/login",
+            data={
+                "username": "invaliduser",
+                "password": "invalidpassword"
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"}
+        )
+        assert response.status_code == 401
+        assert response.json() == {"detail": "Invalid username or password"}
