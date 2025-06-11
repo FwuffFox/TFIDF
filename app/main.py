@@ -36,7 +36,8 @@ app.include_router(user_router)
 async def index(request: Request):
     if os.getenv("ENV") == "development":
         from starlette.responses import RedirectResponse
-        return RedirectResponse(url="/docs")   
+
+        return RedirectResponse(url="/docs")
     return None
 
 

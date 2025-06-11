@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import datetime
 import uuid
-from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (Column, DateTime, Float, ForeignKey, Integer, String,
@@ -34,7 +34,9 @@ class User(Base):
         String(255), nullable=False
     )  # Bcrypted password
     email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.now(datetime.UTC)
+    )
 
     # Relationships
     corpuses: Mapped[list[Corpus]] = relationship(
@@ -54,7 +56,9 @@ class Corpus(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.now(datetime.UTC)
+    )
 
     # Relationships
     user: Mapped[User] = relationship("User", back_populates="corpuses")
@@ -73,7 +77,9 @@ class Document(Base):
     location: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     hash: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=datetime.datetime.now(datetime.UTC)
+    )
 
     # Relationships
     user: Mapped[User] = relationship("User", back_populates="documents")

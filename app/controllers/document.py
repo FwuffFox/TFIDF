@@ -1,21 +1,24 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, Query, Path, File
-from fastapi.responses import StreamingResponse
-from typing import List, Dict
-from io import BytesIO
 import asyncio
+from io import BytesIO
+from typing import Dict, List
 
+from fastapi import (APIRouter, Depends, File, HTTPException, Path, Query,
+                     UploadFile)
+from fastapi.responses import StreamingResponse
+
+from app.controllers.utils.responses import (response401, response403,
+                                             response404)
 from app.dependencies import get_document_repository, get_storage_service
 from app.repositories.document import DocumentRepository
+from app.utils import hash_file_md5
 from app.utils.auth import AuthenticatedUser
 from app.utils.storage import FileStorage
-from app.utils import hash_file_md5
-from app.controllers.utils.responses import response401, response403, response404
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 
 @router.get(
-    "/", 
+    "/",
     response_model=List[Dict[str, str]],
     summary="List user documents",
     description="Retrieves a paginated list of all documents belonging to the authenticated user.",
@@ -26,20 +29,24 @@ router = APIRouter(prefix="/documents", tags=["documents"])
                 "application/json": {
                     "example": [
                         {"id": "doc1", "title": "Document 1"},
-                        {"id": "doc2", "title": "Document 2"}
+                        {"id": "doc2", "title": "Document 2"},
                     ]
                 }
-            }
+            },
         },
         401: response401,
         403: response403,
-    }
+    },
 )
 async def list_documents(
     user: AuthenticatedUser,
     doc_repo: DocumentRepository = Depends(get_document_repository),
-    offset: int = Query(0, description="Number of documents to skip for pagination", ge=0),
-    limit: int = Query(100, description="Maximum number of documents to return", ge=1, le=500),
+    offset: int = Query(
+        0, description="Number of documents to skip for pagination", ge=0
+    ),
+    limit: int = Query(
+        100, description="Maximum number of documents to return", ge=1, le=500
+    ),
 ) -> List[Dict[str, str]]:
     """
     List documents for the authenticated user.
@@ -68,9 +75,13 @@ async def list_documents(
             "description": "Document successfully created",
             "content": {
                 "application/json": {
-                    "example": {"status": "created", "id": "doc1", "title": "Document 1"}
+                    "example": {
+                        "status": "created",
+                        "id": "doc1",
+                        "title": "Document 1",
+                    }
                 }
-            }
+            },
         },
         400: {
             "description": "Document with same content already exists",
@@ -78,9 +89,9 @@ async def list_documents(
                 "application/json": {
                     "example": {"detail": "Document with same content already exists"}
                 }
-            }
+            },
         },
-    }
+    },
 )
 async def create_document(
     user: AuthenticatedUser,
@@ -91,20 +102,20 @@ async def create_document(
 ):
     """
     Upload a new document file.
-    
+
     This endpoint allows users to upload document files which are then stored
     in the system. The API prevents duplicate uploads by comparing file hashes.
-    
+
     Args:
         user: The authenticated user
         title: Title of the document
         file: Document file to upload
         doc_repo: Document repository dependency
         storage: Storage service dependency
-        
+
     Returns:
         Dict containing status and document details
-        
+
     Raises:
         HTTPException: If document with same content already exists (400)
     """
@@ -132,11 +143,11 @@ async def create_document(
     responses={
         200: {
             "description": "The document file",
-            "content": {"application/octet-stream": {}}
+            "content": {"application/octet-stream": {}},
         },
         403: response403,
-        404: response404
-    }
+        404: response404,
+    },
 )
 async def get_document(
     user: AuthenticatedUser,
@@ -146,19 +157,19 @@ async def get_document(
 ) -> StreamingResponse:
     """
     Retrieve a specific document by its ID for the authenticated user.
-    
+
     This endpoint retrieves the document file and returns it as a downloadable
     attachment. The document must belong to the requesting user.
-    
+
     Args:
         user: The authenticated user
         document_id: ID of the document to retrieve
         repo: Document repository dependency
         storage: Storage service dependency
-        
+
     Returns:
         StreamingResponse containing the document file
-        
+
     Raises:
         HTTPException: If document not found (404), access denied (403), or file missing (404)
     """
@@ -197,10 +208,8 @@ async def get_document(
         202: {
             "description": "Document deletion accepted",
             "content": {
-                "application/json": {
-                    "example": {"status": "deletion_in_progress"}
-                }
-            }
+                "application/json": {"example": {"status": "deletion_in_progress"}}
+            },
         },
         403: response403,
         404: response404,
@@ -214,19 +223,19 @@ async def delete_document(
 ):
     """
     Delete a specific document by its ID.
-    
+
     This endpoint deletes both the database record and the associated file.
     The document must belong to the requesting user.
-    
+
     Args:
         user: The authenticated user
         document_id: ID of the document to delete
         repo: Document repository dependency
         storage: Storage service dependency for deleting the file
-        
+
     Returns:
         Dict with deletion status
-        
+
     Raises:
         HTTPException: If document not found (404) or access denied (403)
     """
@@ -242,18 +251,20 @@ async def delete_document(
             # Delete file from storage if it exists
             tasks = []
             if document.location:
-                 tasks.append(storage.delete_file(document.location)) # type: ignore
-                
+                tasks.append(storage.delete_file(document.location))  # type: ignore
+
             # Delete database record
             tasks.append(repo.delete(document_id))
-            
+
             await asyncio.gather(*tasks)
         except Exception as e:
-            print(f"Error during background deletion of document {document_id}: {str(e)}")
-    
+            print(
+                f"Error during background deletion of document {document_id}: {str(e)}"
+            )
+
     # Create background task and return immediately
     asyncio.create_task(delete_document_task())
-    
+
     return {"status": "deletion_in_progress"}
 
 
@@ -269,34 +280,36 @@ async def delete_document(
                 "application/json": {
                     "example": [
                         {"word": "example", "frequency": 5},
-                        {"word": "document", "frequency": 3}
+                        {"word": "document", "frequency": 3},
                     ]
                 }
-            }
+            },
         },
         403: response403,
         404: response404,
-    }
+    },
 )
 async def get_document_statistics(
     user: AuthenticatedUser,
-    document_id: str = Path(..., description="The ID of the document to get statistics for"),
+    document_id: str = Path(
+        ..., description="The ID of the document to get statistics for"
+    ),
     repo: DocumentRepository = Depends(get_document_repository),
 ):
     """
     Retrieve word frequency statistics for a specific document.
-    
+
     This endpoint returns the frequency of each word in the document.
     The document must belong to the requesting user.
-    
+
     Args:
         user: The authenticated user
         document_id: ID of the document to get statistics for
         repo: Document repository dependency
-        
+
     Returns:
         List of dictionaries containing word and frequency information
-        
+
     Raises:
         HTTPException: If document not found (404) or access denied (403)
     """
@@ -309,5 +322,3 @@ async def get_document_statistics(
 
     statistics = await repo.get_statistics(document_id)
     return [{"word": stat.word, "frequency": stat.frequency} for stat in statistics]
-
-
