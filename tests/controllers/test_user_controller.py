@@ -63,3 +63,9 @@ class TestUserController:
         )
         assert response.status_code == 401
         assert response.json() == {"detail": "Invalid username or password"}
+        
+    def test_get_current_user_unauthenticated(self, client):
+        # Attempt to get current user without authentication
+        response = client.get("/user/me")
+        assert response.status_code == 401
+        assert response.json() == {"detail": "Not authenticated"}
