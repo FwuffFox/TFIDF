@@ -104,6 +104,11 @@ class DocumentRepository:
         return document
 
     async def delete(self, document_id: str):
+        """
+        Delete a document by its ID. Does not delete the file itself.
+        Args:
+            document_id (str): The ID of the document to delete.
+        """
         document = await self.get(document_id)
         if document:
             await self.session.delete(document)

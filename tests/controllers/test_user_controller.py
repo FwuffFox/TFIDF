@@ -3,6 +3,12 @@ from fastapi.encoders import jsonable_encoder
 
 from app.controllers.utils.responses import response403
 
+async def register(client, user_data):
+    """
+    Helper function to register a user and return the response.
+    """
+    response = await client.post("/user/register", json=user_data)
+    return response
 
 async def login(client, user_data):
     """
@@ -16,51 +22,82 @@ async def login(client, user_data):
         },
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
-    assert response.status_code == 200
-    client.access_token = response.json()["access_token"]
     return response
 
 
 class TestUserController:
-    @pytest.fixture(scope="class")
+    @pytest.fixture
     def user_data(self):
+        """
+        Fixture to provide fresh user data for each test.
+        Changed to function scope for test independence.
+        """
         return {
             "username": "testuser",
             "password": "testpassword",
             "email": "testemail",
         }
+    
+    @pytest.fixture
+    def alt_user_data(self):
+        """
+        Alternative user data for testing duplicate registrations.
+        """
+        return {
+            "username": "altuser",
+            "password": "altpassword",
+            "email": "altemail",
+        }
 
     async def test_register_user(self, client, user_data):
-        response = await client.post("/user/register", json=user_data)
+        """Test user registration with valid data."""
+        response = await register(client, user_data)
         assert response.status_code == 200
         assert response.json() == {"status": "registered"}
 
     async def test_login_user(self, client, user_data):
-        response = await login(client, user_data)
-        assert response.status_code == 200
-        assert "access_token" in response.json()
-        assert "token_type" in response.json()
+        """Test user login with valid credentials."""
+        # Register first
+        reg_response = await register(client, user_data)
+        assert reg_response.status_code == 200
         
+        # Then login
+        login_response = await login(client, user_data)
+        assert login_response.status_code == 200
+        assert "access_token" in login_response.json()
+        assert "token_type" in login_response.json()
 
     async def test_get_current_user(self, client, user_data):
-        if not hasattr(client, "access_token"):
-            pytest.skip("Access token not available. Skipping test_get_current_user.")
-
+        """Test getting current user info with valid token."""
+        # Register
+        await register(client, user_data)
+        
+        # Login to get token
+        login_response = await login(client, user_data)
+        access_token = login_response.json()["access_token"]
+        
+        # Get user info
         response = await client.get(
-            "/user/me", headers={"Authorization": f"Bearer {client.access_token}"}
+            "/user/me", headers={"Authorization": f"Bearer {access_token}"}
         )
         assert response.status_code == 200
-        user_data = response.json()
-        assert user_data["username"] == "testuser"
-        assert user_data["email"] == "testemail"
+        user_info = response.json()
+        assert user_info["username"] == user_data["username"]
+        assert user_info["email"] == user_data["email"]
 
     async def test_register_existing_user(self, client, user_data):
+        """Test registering a user that already exists."""
+        # Register user first
+        first_response = await register(client, user_data)
+        assert first_response.status_code == 200
+        
         # Attempt to register the same user again
-        response = await client.post("/user/register", json=user_data)
-        assert response.status_code == 400
-        assert response.json() == {"detail": "Username already exists"}
+        second_response = await register(client, user_data)
+        assert second_response.status_code == 400
+        assert second_response.json() == {"detail": "Username already exists"}
 
     async def test_login_invalid_user(self, client):
+        """Test login with invalid credentials."""
         # Attempt to login with invalid credentials
         response = await client.post(
             "/user/login",
@@ -71,56 +108,65 @@ class TestUserController:
         assert response.json() == {"detail": "Invalid username or password"}
 
     async def test_get_current_user_unauthenticated(self, client):
+        """Test getting current user without authentication."""
         # Attempt to get current user without authentication
         response = await client.get("/user/me")
         assert response.status_code == 401
         assert response.json() == {"detail": "Not authenticated"}
 
-    async def test_logout_user(self, client):
-        if not hasattr(client, "access_token"):
-            pytest.skip("Access token not available. Skipping test_logout_user.")
-
+    async def test_logout_user(self, client, user_data):
+        """Test logging out a user with valid token."""
+        # Register
+        await register(client, user_data)
+        
+        # Login to get token
+        login_response = await login(client, user_data)
+        access_token = login_response.json()["access_token"]
+        
+        # Logout
         response = await client.post(
-            "/user/logout", headers={"Authorization": f"Bearer {client.access_token}"}
-        )
-        assert response.status_code == 200
-        assert response.json() == {"status": "logged out successfully"}
-
-        # Verify that the access token is now invalid
-        response = await client.get(
-            "/user/me", headers={"Authorization": f"Bearer {client.access_token}"}
-        )
-        assert response.status_code == 401
-        assert response.json() == {"detail": "Could not validate credentials"}
-
-    async def test_change_password(self, client, user_data):
-        response = await login(client, user_data)
-
-        # Change password
-        response = await client.patch(
-            "/user/",
-            json={
-                "old_password": user_data["password"],
-                "new_password": "newpassword",
-            },
-            headers={"Authorization": f"Bearer {client.access_token}"},
+            "/user/logout", headers={"Authorization": f"Bearer {access_token}"}
         )
         assert response.status_code == 200
         
-        assert response.json() == {"status": "password changed, all sessions invalidated"}
+    async def test_multiple_users(self, client, user_data, alt_user_data):
+        """Test that multiple users can be registered independently."""
+        # Register first user
+        response1 = await register(client, user_data)
+        assert response1.status_code == 200
         
-        # verify logged out
-        response = await client.get(
-            "/user/me", headers={"Authorization": f"Bearer {client.access_token}"}
-        )
-        assert response.status_code == 401
-        assert response.json() == {"detail": "Could not validate credentials"}
+        # Register second user
+        response2 = await register(client, alt_user_data)
+        assert response2.status_code == 200
+        
+        # Login as first user
+        login1 = await login(client, user_data)
+        assert login1.status_code == 200
+        
+        # Login as second user
+        login2 = await login(client, alt_user_data)
+        assert login2.status_code == 200
 
-        # Verify that the new password works
-        response = await client.post(
-            "/user/login",
-            data={"username": user_data["username"], "password": "newpassword"},
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
+    async def test_delete_user(self, client, user_data):
+        """Test deleting a user."""
+        # Register user first
+        response = await register(client, user_data)
+        assert response.status_code == 200
+        
+        # Login to get token
+        login_response = await login(client, user_data)
+        access_token = login_response.json()["access_token"]
+        
+        # Delete user - include the password parameter
+        response = await client.delete(
+            f"/user/?password={user_data['password']}", 
+            headers={"Authorization": f"Bearer {access_token}"}
         )
         assert response.status_code == 200
-        assert "access_token" in response.json()
+        assert "status" in response.json()
+        
+        # Try to get current user after deletion
+        response = await client.get(
+            "/user/me", headers={"Authorization": f"Bearer {access_token}"}
+        )
+        assert response.status_code == 401

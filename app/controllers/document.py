@@ -128,7 +128,7 @@ async def create_document(
 
     document = await doc_repo.create(user.id, title, file_hash)
 
-    location = await storage.save_bytes(filebytes, document.id, user.id)
+    location = str(await storage.save_bytes_by_path(filebytes, f"{user.id}/{document.id}"))
 
     await doc_repo.update_location(document.id, location)
 
@@ -182,7 +182,7 @@ async def get_document(
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Get file content from storage
-    file_content = await storage.get_file(document.location)
+    file_content = await storage.get_file_by_path(document.location)
 
     # Check if file was found
     if file_content is None:
@@ -298,27 +298,32 @@ async def get_document_statistics(
 ):
     """
     Retrieve word frequency statistics for a specific document.
-
-    This endpoint returns the frequency of each word in the document.
-    The document must belong to the requesting user.
-
+    
+    This endpoint returns the frequency of each word in the document,
+    allowing for text analysis. The document must belong to the requesting user.
+    
     Args:
-        user: The authenticated user
-        document_id: ID of the document to get statistics for
-        repo: Document repository dependency
-
+        user (AuthenticatedUser): The authenticated user.
+        document_id (str): ID of the document to analyze.
+        repo (DocumentRepository): Document repository dependency.
+        
     Returns:
-        List of dictionaries containing word and frequency information
-
+        List[Dict[str, str]]: List of words and their frequencies in the document.
+        
     Raises:
-        HTTPException: If document not found (404) or access denied (403)
+        HTTPException: If document not found (404) or access denied (403).
     """
     document = await repo.get(document_id)
     if not document:
-        raise HTTPException(status_code=404, detail="Resource not found")
+        raise HTTPException(status_code=404, detail="Document not found")
 
     if document.user_id != user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    statistics = await repo.get_statistics(document_id)
-    return [{"word": stat.word, "frequency": stat.frequency} for stat in statistics]
+    # Get word frequencies for this document
+    word_frequencies = await repo.get_word_frequencies(document_id)
+
+    # Transform to the required format
+    return [
+        {"word": wf.word, "frequency": wf.frequency} for wf in word_frequencies
+    ]

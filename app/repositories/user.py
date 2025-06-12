@@ -53,6 +53,17 @@ class UserRepository:
         await self.session.commit()
         return user
     
+    async def delete(self, user_id: str):
+        """
+        Delete a user by their ID.
+        """
+        user = await self.get(user_id)
+        if user:
+            await self.session.delete(user)
+            await self.session.commit()
+            return True
+        return False
+    
     async def check_password(self, user: User, password: str) -> bool:
         """
         Check if the provided password matches the stored password hash.

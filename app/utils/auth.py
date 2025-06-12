@@ -10,7 +10,8 @@ from passlib.context import CryptContext
 from app.db.models import User
 from app.dependencies import get_token_manager, get_user_repository
 from app.repositories.user import UserRepository
-from app.utils.token_manager import TokenManager, USER_TOKEN_KEY_PREFIX, BLACKLIST_KEY_PREFIX
+from app.utils.token_manager import (BLACKLIST_KEY_PREFIX,
+                                     USER_TOKEN_KEY_PREFIX, TokenManager)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/user/login")
@@ -80,7 +81,9 @@ async def get_current_user(
 
         # Check if all tokens for this user have been invalidated
         user_invalidation_key = f"{USER_TOKEN_KEY_PREFIX}{user_name}:invalidated_before"
-        invalidated_timestamp = await token_manager.cache_storage.get(user_invalidation_key)
+        invalidated_timestamp = await token_manager.cache_storage.get(
+            user_invalidation_key
+        )
 
         if invalidated_timestamp:
             # Convert to float for comparison

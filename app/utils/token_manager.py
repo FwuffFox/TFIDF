@@ -70,7 +70,9 @@ class TokenManager:
             # Set the current time as the invalidation timestamp
             current_time = datetime.now(timezone.utc).timestamp()
             # Store for 30 days (typical token max lifetime)
-            await self.cache_storage.set(key, str(current_time), ex=2592000)  # 30 days in seconds
+            await self.cache_storage.set(
+                key, str(current_time), ex=2592000
+            )  # 30 days in seconds
             return True
         except Exception:
             return False
