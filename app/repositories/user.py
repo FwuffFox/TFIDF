@@ -39,10 +39,8 @@ class UserRepository:
         self.session.add(user)
         await self.session.commit()
         return user
-    
-    async def change_password(
-        self, user: User, new_password: str
-    ) -> User:
+
+    async def change_password(self, user: User, new_password: str) -> User:
         """
         Change the password for the given user.
         """
@@ -52,7 +50,7 @@ class UserRepository:
         self.session.add(user)
         await self.session.commit()
         return user
-    
+
     async def delete(self, user_id: str):
         """
         Delete a user by their ID.
@@ -63,7 +61,7 @@ class UserRepository:
             await self.session.commit()
             return True
         return False
-    
+
     async def check_password(self, user: User, password: str) -> bool:
         """
         Check if the provided password matches the stored password hash.

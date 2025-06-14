@@ -20,7 +20,6 @@ async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit
 
 from app.db.models import Base
 
-
 # Global dictionary that will be reset for each test
 _test_cache_data = {}
 
@@ -60,9 +59,9 @@ def override_deps():
     """
     app.dependency_overrides[get_session] = get_test_session
     app.dependency_overrides[get_cache_storage] = get_test_cache_storage
-    
+
     yield
-    
+
     # Clean up after test
     app.dependency_overrides.clear()
 
@@ -77,12 +76,12 @@ async def client():
     # Create all tables in the in-memory SQLite database
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://testserver"
     ) as ac:
         yield ac
-    
+
     # Drop all tables after the test to ensure a clean state
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)

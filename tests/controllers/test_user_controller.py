@@ -3,12 +3,14 @@ from fastapi.encoders import jsonable_encoder
 
 from app.controllers.utils.responses import response403
 
+
 async def register(client, user_data):
     """
     Helper function to register a user and return the response.
     """
     response = await client.post("/user/register", json=user_data)
     return response
+
 
 async def login(client, user_data):
     """
@@ -37,7 +39,7 @@ class TestUserController:
             "password": "testpassword",
             "email": "testemail",
         }
-    
+
     @pytest.fixture
     def alt_user_data(self):
         """
@@ -60,7 +62,7 @@ class TestUserController:
         # Register first
         reg_response = await register(client, user_data)
         assert reg_response.status_code == 200
-        
+
         # Then login
         login_response = await login(client, user_data)
         assert login_response.status_code == 200
@@ -71,11 +73,11 @@ class TestUserController:
         """Test getting current user info with valid token."""
         # Register
         await register(client, user_data)
-        
+
         # Login to get token
         login_response = await login(client, user_data)
         access_token = login_response.json()["access_token"]
-        
+
         # Get user info
         response = await client.get(
             "/user/me", headers={"Authorization": f"Bearer {access_token}"}
@@ -90,7 +92,7 @@ class TestUserController:
         # Register user first
         first_response = await register(client, user_data)
         assert first_response.status_code == 200
-        
+
         # Attempt to register the same user again
         second_response = await register(client, user_data)
         assert second_response.status_code == 400
@@ -118,31 +120,31 @@ class TestUserController:
         """Test logging out a user with valid token."""
         # Register
         await register(client, user_data)
-        
+
         # Login to get token
         login_response = await login(client, user_data)
         access_token = login_response.json()["access_token"]
-        
+
         # Logout
         response = await client.post(
             "/user/logout", headers={"Authorization": f"Bearer {access_token}"}
         )
         assert response.status_code == 200
-        
+
     async def test_multiple_users(self, client, user_data, alt_user_data):
         """Test that multiple users can be registered independently."""
         # Register first user
         response1 = await register(client, user_data)
         assert response1.status_code == 200
-        
+
         # Register second user
         response2 = await register(client, alt_user_data)
         assert response2.status_code == 200
-        
+
         # Login as first user
         login1 = await login(client, user_data)
         assert login1.status_code == 200
-        
+
         # Login as second user
         login2 = await login(client, alt_user_data)
         assert login2.status_code == 200
@@ -152,19 +154,19 @@ class TestUserController:
         # Register user first
         response = await register(client, user_data)
         assert response.status_code == 200
-        
+
         # Login to get token
         login_response = await login(client, user_data)
         access_token = login_response.json()["access_token"]
-        
+
         # Delete user - include the password parameter
         response = await client.delete(
-            f"/user/?password={user_data['password']}", 
-            headers={"Authorization": f"Bearer {access_token}"}
+            f"/user/?password={user_data['password']}",
+            headers={"Authorization": f"Bearer {access_token}"},
         )
         assert response.status_code == 200
         assert "status" in response.json()
-        
+
         # Try to get current user after deletion
         response = await client.get(
             "/user/me", headers={"Authorization": f"Bearer {access_token}"}

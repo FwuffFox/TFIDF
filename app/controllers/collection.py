@@ -1,10 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
 import logging
-from typing import Dict, List, Optional
 import math
+from typing import Dict, List, Optional
 
-from app.controllers.utils.responses import response401, response403, response404
-from app.dependencies import get_corpus_repository, get_document_repository, get_tfidf_service
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
+
+from app.controllers.utils.responses import (response401, response403,
+                                             response404)
+from app.dependencies import (get_corpus_repository, get_document_repository,
+                              get_tfidf_service)
 from app.repositories.corpus import CorpusRepository
 from app.repositories.document import DocumentRepository
 from app.services.tfidf_service import TFIDFService
@@ -26,7 +29,7 @@ router = APIRouter(prefix="/collections", tags=["collections"])
                 "application/json": {
                     "example": [
                         {"id": "col1", "name": "Research Papers"},
-                        {"id": "col2", "name": "Technical Documentation"}
+                        {"id": "col2", "name": "Technical Documentation"},
                     ]
                 }
             },
@@ -39,23 +42,28 @@ async def list_collections(
 ):
     """
     List all collections belonging to the authenticated user.
-    
+
     Args:
         user (AuthenticatedUser): The authenticated user.
         repo (CorpusRepository): Repository for corpus operations.
-        
+
     Returns:
         list: A list of collections with their IDs and names.
     """
     logger.info(f"Listing collections for user: {user.username}")
-    
+
     try:
         collections = await repo.get_all(user.id)
         collection_count = len(collections)
-        logger.info(f"Retrieved {collection_count} collections for user: {user.username}")
+        logger.info(
+            f"Retrieved {collection_count} collections for user: {user.username}"
+        )
         return [{"id": c.id, "name": c.name} for c in collections]
     except Exception as e:
-        logger.error(f"Error retrieving collections for user {user.username}: {str(e)}", exc_info=True)
+        logger.error(
+            f"Error retrieving collections for user {user.username}: {str(e)}",
+            exc_info=True,
+        )
         raise HTTPException(status_code=500, detail="Failed to retrieve collections")
 
 
@@ -75,8 +83,8 @@ async def list_collections(
                         "created_at": "2025-05-12T10:30:00",
                         "documents": [
                             {"id": "doc1", "filename": "nlp_research.txt"},
-                            {"id": "doc2", "filename": "transformers.txt"}
-                        ]
+                            {"id": "doc2", "filename": "transformers.txt"},
+                        ],
                     }
                 }
             },
@@ -92,36 +100,44 @@ async def get_collection(
 ):
     """
     Get detailed information about a specific collection.
-    
+
     This endpoint retrieves a collection by its ID, including the list of documents
     that belong to the collection. The collection must belong to the requesting user.
-    
+
     Args:
         user (AuthenticatedUser): The authenticated user.
         collection_id (str): The ID of the collection to retrieve.
         repo (CorpusRepository): Repository for corpus operations.
-        
+
     Returns:
         dict: Detailed collection information including documents.
-        
+
     Raises:
         HTTPException: If collection not found (404) or access denied (403).
     """
-    logger.info(f"Collection details requested - ID: {collection_id}, User: {user.username}")
-    
+    logger.info(
+        f"Collection details requested - ID: {collection_id}, User: {user.username}"
+    )
+
     try:
         collection = await repo.get(collection_id)
         if not collection:
-            logger.warning(f"Collection details request failed - Collection not found, ID: {collection_id}, User: {user.username}")
+            logger.warning(
+                f"Collection details request failed - Collection not found, ID: {collection_id}, User: {user.username}"
+            )
             raise HTTPException(status_code=404, detail="Collection not found")
 
         if collection.user_id != user.id:
-            logger.warning(f"Collection details request failed - Access denied, ID: {collection_id}, User: {user.username}, Owner: {collection.user_id}")
+            logger.warning(
+                f"Collection details request failed - Access denied, ID: {collection_id}, User: {user.username}, Owner: {collection.user_id}"
+            )
             raise HTTPException(status_code=403, detail="Access denied")
 
         document_count = len(collection.documents) if collection.documents else 0
-        logger.info(f"Collection details retrieved - ID: {collection_id}, Name: {collection.name}, Documents: {document_count}, User: {user.username}")
-        
+        logger.info(
+            f"Collection details retrieved - ID: {collection_id}, Name: {collection.name}, Documents: {document_count}, User: {user.username}"
+        )
+
         return {
             "id": collection.id,
             "name": collection.name,
@@ -135,8 +151,13 @@ async def get_collection(
         # Re-raise HTTP exceptions since they've already been logged
         raise
     except Exception as e:
-        logger.error(f"Error retrieving collection details for ID {collection_id}, User {user.username}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to retrieve collection details")
+        logger.error(
+            f"Error retrieving collection details for ID {collection_id}, User {user.username}: {str(e)}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve collection details"
+        )
 
 
 @router.post(
@@ -146,11 +167,7 @@ async def get_collection(
     responses={
         200: {
             "description": "Document successfully added to collection",
-            "content": {
-                "application/json": {
-                    "example": {"status": "added"}
-                }
-            },
+            "content": {"application/json": {"example": {"status": "added"}}},
         },
         403: response403,
         404: response404,
@@ -164,31 +181,40 @@ async def add_document_to_collection(
 ):
     """
     Add a document to a collection.
-    
+
     This endpoint associates an existing document with a collection.
     Both the document and collection must belong to the requesting user.
-    
+
     Args:
         user (AuthenticatedUser): The authenticated user.
         collection_id (str): The ID of the collection.
         document_id (str): The ID of the document to add.
         repo (CorpusRepository): Repository for corpus operations.
-        
+
     Returns:
         dict: A status message indicating the document was added.
-        
+
     Raises:
         HTTPException: If collection or document not found (404) or access denied (403).
     """
-    logger.info(f"Add document to collection requested - Collection: {collection_id}, Document: {document_id}, User: {user.username}")
-    
+    logger.info(
+        f"Add document to collection requested - Collection: {collection_id}, Document: {document_id}, User: {user.username}"
+    )
+
     try:
         # TODO: реализовать добавление документа в коллекцию
-        logger.info(f"Document added to collection successfully - Collection: {collection_id}, Document: {document_id}, User: {user.username}")
+        logger.info(
+            f"Document added to collection successfully - Collection: {collection_id}, Document: {document_id}, User: {user.username}"
+        )
         return {"status": "added"}
     except Exception as e:
-        logger.error(f"Error adding document {document_id} to collection {collection_id} for user {user.username}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to add document to collection")
+        logger.error(
+            f"Error adding document {document_id} to collection {collection_id} for user {user.username}: {str(e)}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500, detail="Failed to add document to collection"
+        )
 
 
 @router.delete(
@@ -198,11 +224,7 @@ async def add_document_to_collection(
     responses={
         200: {
             "description": "Document successfully removed from collection",
-            "content": {
-                "application/json": {
-                    "example": {"status": "removed"}
-                }
-            },
+            "content": {"application/json": {"example": {"status": "removed"}}},
         },
         403: response403,
         404: response404,
@@ -216,32 +238,41 @@ async def remove_document_from_collection(
 ):
     """
     Remove a document from a collection.
-    
+
     This endpoint removes the association between a document and a collection.
     Both the document and collection must belong to the requesting user.
     The document itself is not deleted, only removed from the collection.
-    
+
     Args:
         user (AuthenticatedUser): The authenticated user.
         collection_id (str): The ID of the collection.
         document_id (str): The ID of the document to remove.
         repo (CorpusRepository): Repository for corpus operations.
-        
+
     Returns:
         dict: A status message indicating the document was removed.
-        
+
     Raises:
         HTTPException: If collection or document not found (404) or access denied (403).
     """
-    logger.info(f"Remove document from collection requested - Collection: {collection_id}, Document: {document_id}, User: {user.username}")
-    
+    logger.info(
+        f"Remove document from collection requested - Collection: {collection_id}, Document: {document_id}, User: {user.username}"
+    )
+
     try:
         # TODO: реализовать удаление документа из коллекции
-        logger.info(f"Document removed from collection successfully - Collection: {collection_id}, Document: {document_id}, User: {user.username}")
+        logger.info(
+            f"Document removed from collection successfully - Collection: {collection_id}, Document: {document_id}, User: {user.username}"
+        )
         return {"status": "removed"}
     except Exception as e:
-        logger.error(f"Error removing document {document_id} from collection {collection_id} for user {user.username}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to remove document from collection")
+        logger.error(
+            f"Error removing document {document_id} from collection {collection_id} for user {user.username}: {str(e)}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500, detail="Failed to remove document from collection"
+        )
 
 
 @router.get(
@@ -255,8 +286,20 @@ async def remove_document_from_collection(
             "content": {
                 "application/json": {
                     "example": [
-                        {"word": "example", "frequency": 10, "tf": 0.8333, "idf": 1.6931, "tfidf": 1.4109},
-                        {"word": "document", "frequency": 6, "tf": 0.5, "idf": 1.0986, "tfidf": 0.5493}
+                        {
+                            "word": "example",
+                            "frequency": 10,
+                            "tf": 0.8333,
+                            "idf": 1.6931,
+                            "tfidf": 1.4109,
+                        },
+                        {
+                            "word": "document",
+                            "frequency": 6,
+                            "tf": 0.5,
+                            "idf": 1.0986,
+                            "tfidf": 0.5493,
+                        },
                     ]
                 }
             },
@@ -274,35 +317,41 @@ async def get_collection_statistics(
 ):
     """
     Retrieve word statistics for all documents in a collection.
-    
+
     This endpoint calculates word frequencies and TF-IDF scores for a collection,
     treating all documents in the collection as if they were a single document
     for Term Frequency (TF) calculation, while keeping the standard IDF calculation.
-    
+
     Args:
         user (AuthenticatedUser): The authenticated user.
         collection_id (str): The ID of the collection to analyze.
         collection_repo (CorpusRepository): Repository for collection operations.
         doc_repo (DocumentRepository): Repository for document operations.
         tfidf_service (TFIDFService): Service for TF-IDF calculations.
-        
+
     Returns:
         List[Dict]: List of words with their combined frequencies and TF-IDF scores.
-        
+
     Raises:
         HTTPException: If collection not found (404) or access denied (403).
     """
-    logger.info(f"Collection statistics requested - ID: {collection_id}, User: {user.username}")
-    
+    logger.info(
+        f"Collection statistics requested - ID: {collection_id}, User: {user.username}"
+    )
+
     try:
         # Get the collection
         collection = await collection_repo.get(collection_id)
         if not collection:
-            logger.warning(f"Collection statistics request failed - Collection not found, ID: {collection_id}, User: {user.username}")
+            logger.warning(
+                f"Collection statistics request failed - Collection not found, ID: {collection_id}, User: {user.username}"
+            )
             raise HTTPException(status_code=404, detail="Collection not found")
 
         if collection.user_id != user.id:
-            logger.warning(f"Collection statistics request failed - Access denied, ID: {collection_id}, User: {user.username}, Owner: {collection.user_id}")
+            logger.warning(
+                f"Collection statistics request failed - Access denied, ID: {collection_id}, User: {user.username}, Owner: {collection.user_id}"
+            )
             raise HTTPException(status_code=403, detail="Access denied")
 
         # Get documents in the collection
@@ -310,7 +359,7 @@ async def get_collection_statistics(
         if not documents:
             logger.warning(f"No documents found in collection - ID: {collection_id}")
             return []
-            
+
         # Get word frequencies for all documents in the collection
         all_word_frequencies = {}
         for document in documents:
@@ -320,52 +369,65 @@ async def get_collection_statistics(
                     all_word_frequencies[wf.word] += wf.frequency
                 else:
                     all_word_frequencies[wf.word] = wf.frequency
-        
+
         if not all_word_frequencies:
-            logger.warning(f"No word frequencies found in collection documents - ID: {collection_id}")
+            logger.warning(
+                f"No word frequencies found in collection documents - ID: {collection_id}"
+            )
             return []
-            
+
         # Calculate term frequencies (TF) treating all documents as one
-        max_frequency = max(all_word_frequencies.values()) if all_word_frequencies else 1
-        
+        max_frequency = (
+            max(all_word_frequencies.values()) if all_word_frequencies else 1
+        )
+
         # Prepare results
         results = []
         for word, frequency in all_word_frequencies.items():
             # Calculate term frequency for the collection
             tf = frequency / max_frequency
-            
+
             # For IDF, use the standard calculation (number of docs containing term)
             doc_count = 0
             for document in documents:
                 doc_word_freqs = await doc_repo.get_word_frequencies(document.id)
                 if any(wf.word == word for wf in doc_word_freqs):
                     doc_count += 1
-            
+
             # Calculate IDF (log of total docs divided by docs containing the term)
             total_docs = len(documents)
             # Add 1 to doc_count to avoid division by zero
             idf = math.log((total_docs + 1) / (doc_count + 1)) + 1
-            
+
             # Calculate TF-IDF
             tfidf = tf * idf
-            
-            results.append({
-                "word": word,
-                "frequency": frequency,
-                "tf": round(tf, 4),
-                "idf": round(idf, 4),
-                "tfidf": round(tfidf, 4)
-            })
-        
+
+            results.append(
+                {
+                    "word": word,
+                    "frequency": frequency,
+                    "tf": round(tf, 4),
+                    "idf": round(idf, 4),
+                    "tfidf": round(tfidf, 4),
+                }
+            )
+
         # Sort by TF-IDF score descending
         results.sort(key=lambda x: x["tfidf"], reverse=True)
-        
-        logger.info(f"Collection statistics calculated successfully - ID: {collection_id}, Words: {len(results)}")
+
+        logger.info(
+            f"Collection statistics calculated successfully - ID: {collection_id}, Words: {len(results)}"
+        )
         return results
-        
+
     except HTTPException:
         # Re-raise HTTP exceptions since they've already been logged
         raise
     except Exception as e:
-        logger.error(f"Error calculating collection statistics - ID: {collection_id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to calculate collection statistics")
+        logger.error(
+            f"Error calculating collection statistics - ID: {collection_id}: {str(e)}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500, detail="Failed to calculate collection statistics"
+        )

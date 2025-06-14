@@ -28,7 +28,9 @@ class FileStorage:
         """Ensure the storage directory exists."""
         os.makedirs(self.base_path, exist_ok=True)
 
-    def _get_file_path(self, path: Union[str, Path], create_missing: bool = False) -> Path:
+    def _get_file_path(
+        self, path: Union[str, Path], create_missing: bool = False
+    ) -> Path:
         """
         Get the full file path for a given file identifier.
 
@@ -41,10 +43,10 @@ class FileStorage:
         """
         if not path.is_absolute():
             path = self.base_path / path
-            
+
         if create_missing:
             path.parent.mkdir(parents=True, exist_ok=True)
-            
+
         return path
 
     async def get_file_by_path(self, path: Union[Path, str]) -> Optional[bytes]:
@@ -69,7 +71,7 @@ class FileStorage:
         except Exception as e:
             logger.error(f"Error reading file {file_path}: {str(e)}")
             raise IOError(f"Failed to read file: {str(e)}")
-    
+
     async def delete_file_by_path(self, path: Union[Path, str]) -> bool:
         """
         Delete a file from storage.
