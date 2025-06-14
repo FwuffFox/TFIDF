@@ -5,14 +5,14 @@ from typing import Dict, List, Optional
 
 from fastapi import (APIRouter, Depends, File, HTTPException, Path, Query,
                      UploadFile)
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 
 from app.controllers.utils.responses import (response401, response403,
                                              response404)
 from app.dependencies import (get_document_repository, get_storage_service,
                               get_tfidf_service)
 from app.repositories.document import DocumentRepository
-from app.services.tfidf_service import TFIDFService
+from app.utils.tfidf_service import TFIDFService
 from app.utils import hash_file_md5
 from app.utils.auth import AuthenticatedUser
 from app.utils.storage import FileStorage

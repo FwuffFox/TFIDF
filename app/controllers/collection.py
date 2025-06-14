@@ -1,8 +1,8 @@
 import logging
 import math
-from typing import Dict, List, Optional
+from typing import Dict, List
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path
 
 from app.controllers.utils.responses import (response401, response403,
                                              response404)
@@ -10,7 +10,7 @@ from app.dependencies import (get_collection_repository,
                               get_document_repository, get_tfidf_service)
 from app.repositories.collection import CollectionRepository
 from app.repositories.document import DocumentRepository
-from app.services.tfidf_service import TFIDFService
+from app.utils.tfidf_service import TFIDFService
 from app.utils.auth import AuthenticatedUser
 
 logger = logging.getLogger(__name__)

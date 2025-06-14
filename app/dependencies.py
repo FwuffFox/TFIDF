@@ -33,7 +33,7 @@ def get_collection_repository(session: AsyncSession = Depends(get_session)):
 
 
 def get_tfidf_service(doc_repo=Depends(get_document_repository)):
-    from app.services.tfidf_service import TFIDFService
+    from app.utils.tfidf_service import TFIDFService
 
     return TFIDFService(doc_repo)
 
