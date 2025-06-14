@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 
 from fastapi import (APIRouter, Depends, File, HTTPException, Path, Query,
                      UploadFile)
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 
 from app.controllers.utils.responses import (response401, response403,
                                              response404)
@@ -290,7 +290,7 @@ async def delete_document(
             tasks = []
             if document.location:
                 logger.debug(f"Deleting document file - Location: {document.location}")
-                tasks.append(storage.delete_file(document.location))  # type: ignore
+                tasks.append(storage.delete_file_by_path(str(document.location)))
 
             # Delete database record
             logger.debug(f"Deleting document record from database - ID: {document_id}")
@@ -308,7 +308,11 @@ async def delete_document(
     asyncio.create_task(delete_document_task())
     logger.info(f"Document deletion task initiated - ID: {document_id}, User: {user.username}")
 
-    return {"status": "deletion_in_progress"}
+    # Return response with explicit 202 status code for Accepted
+    return JSONResponse(
+        status_code=202,
+        content={"status": "deletion_in_progress"}
+    )
 
 
 @router.get(
@@ -382,5 +386,3 @@ async def get_document_statistics(
     except Exception as e:
         logger.error(f"Error retrieving statistics for document {document_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to retrieve document statistics")
-
-
