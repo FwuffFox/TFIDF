@@ -12,7 +12,7 @@ class TFIDFService:
     Service for calculating TF-IDF (Term Frequency-Inverse Document Frequency) values.
 
     This service provides methods to analyze the importance of words in documents
-    relative to a corpus of documents.
+    relative to a collection of documents.
     """
 
     def __init__(self, document_repository: DocumentRepository):
@@ -25,21 +25,21 @@ class TFIDFService:
         self.document_repository = document_repository
 
     async def calculate_tfidf_for_document(
-        self, document_id: str, corpus_id: str = None
+        self, document_id: str, collection_id: str = None
     ) -> List[Dict]:
         """
         Calculate TF-IDF scores for all words in a specific document.
 
         Args:
             document_id: ID of the document to analyze
-            corpus_id: Optional corpus ID to limit the document collection for IDF calculation
+            collection_id: Optional collection ID to limit the document collection for IDF calculation
                        If None, all documents from the same user will be considered
 
         Returns:
             List of dictionaries with word, frequency, and tfidf score
         """
         logger.info(
-            f"Calculating TF-IDF for document ID: {document_id}, corpus ID: {corpus_id}"
+            f"Calculating TF-IDF for document ID: {document_id}, collection ID: {collection_id}"
         )
 
         try:
@@ -58,10 +58,12 @@ class TFIDFService:
                 return []
 
             # Get all documents for IDF calculation
-            if corpus_id:
-                all_documents = await self.document_repository.get_by_corpus(corpus_id)
+            if collection_id:
+                all_documents = await self.document_repository.get_by_collection(
+                    collection_id
+                )
                 logger.info(
-                    f"Using {len(all_documents)} documents from corpus {corpus_id} for IDF calculation"
+                    f"Using {len(all_documents)} documents from collection {collection_id} for IDF calculation"
                 )
             else:
                 all_documents = await self.document_repository.get_by_user(

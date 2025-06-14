@@ -1,11 +1,7 @@
 import io
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
-
-from app.controllers.utils.responses import response403, response404
-from app.utils.auth import AuthenticatedUser
-from app.utils.storage import FileStorage
 
 
 async def register_and_login(client, user_data):

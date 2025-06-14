@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Request
-from fastapi.templating import Jinja2Templates
 
 from app.controllers.collection import router as collection_router
 from app.controllers.document import router as document_router

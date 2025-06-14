@@ -1,7 +1,4 @@
 import pytest
-from fastapi.encoders import jsonable_encoder
-
-from app.controllers.utils.responses import response403
 
 
 async def register(client, user_data):

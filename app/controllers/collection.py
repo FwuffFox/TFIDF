@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 
 from app.controllers.utils.responses import (response401, response403,
                                              response404)
-from app.dependencies import (get_corpus_repository, get_document_repository,
-                              get_tfidf_service)
-from app.repositories.corpus import CorpusRepository
+from app.dependencies import (get_collection_repository,
+                              get_document_repository, get_tfidf_service)
+from app.repositories.collection import CollectionRepository
 from app.repositories.document import DocumentRepository
 from app.services.tfidf_service import TFIDFService
 from app.utils.auth import AuthenticatedUser
@@ -38,14 +38,15 @@ router = APIRouter(prefix="/collections", tags=["collections"])
     },
 )
 async def list_collections(
-    user: AuthenticatedUser, repo: CorpusRepository = Depends(get_corpus_repository)
+    user: AuthenticatedUser,
+    repo: CollectionRepository = Depends(get_collection_repository),
 ):
     """
     List all collections belonging to the authenticated user.
 
     Args:
         user (AuthenticatedUser): The authenticated user.
-        repo (CorpusRepository): Repository for corpus operations.
+        repo (CollectionRepository): Repository for collection operations.
 
     Returns:
         list: A list of collections with their IDs and names.
@@ -96,7 +97,7 @@ async def list_collections(
 async def get_collection(
     user: AuthenticatedUser,
     collection_id: str = Path(..., description="The ID of the collection to retrieve"),
-    repo: CorpusRepository = Depends(get_corpus_repository),
+    repo: CollectionRepository = Depends(get_collection_repository),
 ):
     """
     Get detailed information about a specific collection.
@@ -107,7 +108,7 @@ async def get_collection(
     Args:
         user (AuthenticatedUser): The authenticated user.
         collection_id (str): The ID of the collection to retrieve.
-        repo (CorpusRepository): Repository for corpus operations.
+        repo (CollectionRepository): Repository for collection operations.
 
     Returns:
         dict: Detailed collection information including documents.
@@ -177,7 +178,7 @@ async def add_document_to_collection(
     user: AuthenticatedUser,
     collection_id: str = Path(..., description="The ID of the collection"),
     document_id: str = Path(..., description="The ID of the document to add"),
-    repo: CorpusRepository = Depends(get_corpus_repository),
+    repo: CollectionRepository = Depends(get_collection_repository),
 ):
     """
     Add a document to a collection.
@@ -189,7 +190,7 @@ async def add_document_to_collection(
         user (AuthenticatedUser): The authenticated user.
         collection_id (str): The ID of the collection.
         document_id (str): The ID of the document to add.
-        repo (CorpusRepository): Repository for corpus operations.
+        repo (CollectionRepository): Repository for collection operations.
 
     Returns:
         dict: A status message indicating the document was added.
@@ -234,7 +235,7 @@ async def remove_document_from_collection(
     user: AuthenticatedUser,
     collection_id: str = Path(..., description="The ID of the collection"),
     document_id: str = Path(..., description="The ID of the document to remove"),
-    repo: CorpusRepository = Depends(get_corpus_repository),
+    repo: CollectionRepository = Depends(get_collection_repository),
 ):
     """
     Remove a document from a collection.
@@ -247,7 +248,7 @@ async def remove_document_from_collection(
         user (AuthenticatedUser): The authenticated user.
         collection_id (str): The ID of the collection.
         document_id (str): The ID of the document to remove.
-        repo (CorpusRepository): Repository for corpus operations.
+        repo (CollectionRepository): Repository for collection operations.
 
     Returns:
         dict: A status message indicating the document was removed.
@@ -311,7 +312,7 @@ async def remove_document_from_collection(
 async def get_collection_statistics(
     user: AuthenticatedUser,
     collection_id: str = Path(..., description="The ID of the collection to analyze"),
-    collection_repo: CorpusRepository = Depends(get_corpus_repository),
+    collection_repo: CollectionRepository = Depends(get_collection_repository),
     doc_repo: DocumentRepository = Depends(get_document_repository),
     tfidf_service: TFIDFService = Depends(get_tfidf_service),
 ):
@@ -325,7 +326,7 @@ async def get_collection_statistics(
     Args:
         user (AuthenticatedUser): The authenticated user.
         collection_id (str): The ID of the collection to analyze.
-        collection_repo (CorpusRepository): Repository for collection operations.
+        collection_repo (CollectionRepository): Repository for collection operations.
         doc_repo (DocumentRepository): Repository for document operations.
         tfidf_service (TFIDFService): Service for TF-IDF calculations.
 
@@ -355,7 +356,7 @@ async def get_collection_statistics(
             raise HTTPException(status_code=403, detail="Access denied")
 
         # Get documents in the collection
-        documents = await doc_repo.get_by_corpus(collection_id)
+        documents = await doc_repo.get_by_collection(collection_id)
         if not documents:
             logger.warning(f"No documents found in collection - ID: {collection_id}")
             return []

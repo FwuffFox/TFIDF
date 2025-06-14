@@ -26,10 +26,10 @@ def get_document_repository(session: AsyncSession = Depends(get_session)):
     return DocumentRepository(session)
 
 
-def get_corpus_repository(session: AsyncSession = Depends(get_session)):
-    from app.repositories.corpus import CorpusRepository
+def get_collection_repository(session: AsyncSession = Depends(get_session)):
+    from app.repositories.collection import CollectionRepository
 
-    return CorpusRepository(session)
+    return CollectionRepository(session)
 
 
 def get_tfidf_service(doc_repo=Depends(get_document_repository)):

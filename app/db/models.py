@@ -13,11 +13,11 @@ class Base(DeclarativeBase):
     pass
 
 
-document_corpus_association_table = Table(
-    "document_corpus_association_table",
+document_collection_association_table = Table(
+    "document_collection_association_table",
     Base.metadata,
     Column("document_id", ForeignKey("documents.id"), primary_key=True),
-    Column("corpus_id", ForeignKey("corpuses.id"), primary_key=True),
+    Column("collection_id", ForeignKey("collections.id"), primary_key=True),
 )
 
 
@@ -39,16 +39,16 @@ class User(Base):
     )
 
     # Relationships
-    corpuses: Mapped[list[Corpus]] = relationship(
-        "Corpus", back_populates="user", cascade="all, delete-orphan"
+    collections: Mapped[list[Collection]] = relationship(
+        "Collection", back_populates="user", cascade="all, delete-orphan"
     )
     documents: Mapped[list[Document]] = relationship(
         "Document", back_populates="user", cascade="all, delete-orphan"
     )
 
 
-class Corpus(Base):
-    __tablename__ = "corpuses"
+class Collection(Base):
+    __tablename__ = "collections"
 
     id: Mapped[str] = mapped_column(
         String, primary_key=True, default=lambda: str(uuid.uuid4())
@@ -61,9 +61,9 @@ class Corpus(Base):
     )
 
     # Relationships
-    user: Mapped[User] = relationship("User", back_populates="corpuses")
+    user: Mapped[User] = relationship("User", back_populates="collections")
     documents: Mapped[list[Document]] = relationship(
-        secondary=document_corpus_association_table, back_populates="corpuses"
+        secondary=document_collection_association_table, back_populates="collections"
     )
 
 
@@ -83,10 +83,10 @@ class Document(Base):
 
     # Relationships
     user: Mapped[User] = relationship("User", back_populates="documents")
-    corpuses: Mapped[list[Corpus]] = relationship(
-        secondary=document_corpus_association_table, back_populates="documents"
+    collections: Mapped[list[Collection]] = relationship(
+        secondary=document_collection_association_table, back_populates="documents"
     )
-    word_frequencies: Mapped[list["WordFrequency"]] = relationship(
+    word_frequencies: Mapped[list[WordFrequency]] = relationship(
         "WordFrequency", back_populates="document", cascade="all, delete-orphan"
     )
 
