@@ -178,7 +178,8 @@ async def add_document_to_collection(
     user: AuthenticatedUser,
     collection_id: str = Path(..., description="The ID of the collection"),
     document_id: str = Path(..., description="The ID of the document to add"),
-    repo: CollectionRepository = Depends(get_collection_repository),
+    collection_repo: CollectionRepository = Depends(get_collection_repository),
+    doc_repo: DocumentRepository = Depends(get_document_repository),
 ):
     """
     Add a document to a collection.
@@ -190,7 +191,8 @@ async def add_document_to_collection(
         user (AuthenticatedUser): The authenticated user.
         collection_id (str): The ID of the collection.
         document_id (str): The ID of the document to add.
-        repo (CollectionRepository): Repository for collection operations.
+        collection_repo (CollectionRepository): Repository for collection operations.
+        doc_repo (DocumentRepository): Repository for document operations.
 
     Returns:
         dict: A status message indicating the document was added.
@@ -203,11 +205,39 @@ async def add_document_to_collection(
     )
 
     try:
-        # TODO: реализовать добавление документа в коллекцию
+        # Check if collection exists and belongs to the user
+        collection = await collection_repo.get(collection_id)
+        if not collection:
+            logger.warning(f"Collection not found, ID: {collection_id}")
+            raise HTTPException(status_code=404, detail="Collection not found")
+        
+        if collection.user_id != user.id:
+            logger.warning(f"Access to collection denied, ID: {collection_id}, User: {user.username}")
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Check if document exists and belongs to the user
+        document = await doc_repo.get(document_id)
+        if not document:
+            logger.warning(f"Document not found, ID: {document_id}")
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        if document.user_id != user.id:
+            logger.warning(f"Access to document denied, ID: {document_id}, User: {user.username}")
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Add document to collection
+        result = await collection_repo.add_document(collection_id, document_id)
+        if not result:
+            logger.error(f"Failed to add document to collection - Collection: {collection_id}, Document: {document_id}")
+            raise HTTPException(status_code=500, detail="Failed to add document to collection")
+        
         logger.info(
             f"Document added to collection successfully - Collection: {collection_id}, Document: {document_id}, User: {user.username}"
         )
         return {"status": "added"}
+    except HTTPException:
+        # Re-raise HTTP exceptions since they've already been logged
+        raise
     except Exception as e:
         logger.error(
             f"Error adding document {document_id} to collection {collection_id} for user {user.username}: {str(e)}",
@@ -235,7 +265,8 @@ async def remove_document_from_collection(
     user: AuthenticatedUser,
     collection_id: str = Path(..., description="The ID of the collection"),
     document_id: str = Path(..., description="The ID of the document to remove"),
-    repo: CollectionRepository = Depends(get_collection_repository),
+    collection_repo: CollectionRepository = Depends(get_collection_repository),
+    doc_repo: DocumentRepository = Depends(get_document_repository),
 ):
     """
     Remove a document from a collection.
@@ -248,7 +279,8 @@ async def remove_document_from_collection(
         user (AuthenticatedUser): The authenticated user.
         collection_id (str): The ID of the collection.
         document_id (str): The ID of the document to remove.
-        repo (CollectionRepository): Repository for collection operations.
+        collection_repo (CollectionRepository): Repository for collection operations.
+        doc_repo (DocumentRepository): Repository for document operations.
 
     Returns:
         dict: A status message indicating the document was removed.
@@ -261,11 +293,39 @@ async def remove_document_from_collection(
     )
 
     try:
-        # TODO: реализовать удаление документа из коллекции
+        # Check if collection exists and belongs to the user
+        collection = await collection_repo.get(collection_id)
+        if not collection:
+            logger.warning(f"Collection not found, ID: {collection_id}")
+            raise HTTPException(status_code=404, detail="Collection not found")
+        
+        if collection.user_id != user.id:
+            logger.warning(f"Access to collection denied, ID: {collection_id}, User: {user.username}")
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Check if document exists and belongs to the user
+        document = await doc_repo.get(document_id)
+        if not document:
+            logger.warning(f"Document not found, ID: {document_id}")
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        if document.user_id != user.id:
+            logger.warning(f"Access to document denied, ID: {document_id}, User: {user.username}")
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Remove document from collection
+        result = await collection_repo.remove_document(collection_id, document_id)
+        if not result:
+            logger.error(f"Failed to remove document from collection - Collection: {collection_id}, Document: {document_id}")
+            raise HTTPException(status_code=500, detail="Failed to remove document from collection")
+        
         logger.info(
             f"Document removed from collection successfully - Collection: {collection_id}, Document: {document_id}, User: {user.username}"
         )
         return {"status": "removed"}
+    except HTTPException:
+        # Re-raise HTTP exceptions since they've already been logged
+        raise
     except Exception as e:
         logger.error(
             f"Error removing document {document_id} from collection {collection_id} for user {user.username}: {str(e)}",
