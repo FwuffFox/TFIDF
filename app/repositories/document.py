@@ -1,9 +1,15 @@
-from typing import Optional, Sequence
+from typing import Dict, List, Optional, Sequence
+import re
+import logging
+from io import BytesIO
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Document, WordFrequency
+from app.utils.storage import FileStorage
+
+logger = logging.getLogger(__name__)
 
 
 class DocumentRepository:
@@ -115,15 +121,6 @@ class DocumentRepository:
             await self.session.commit()
         return document
 
-    async def get_statistics(self, document_id: str) -> Sequence[WordFrequency]:
-        """
-        Retrieve word frequency statistics for a specific document.
-        """
-        result = await self.session.execute(
-            select(WordFrequency).where(WordFrequency.document_id == document_id)
-        )
-        return result.scalars().all()
-
     async def update_location(
         self, document_id: str, location: str
     ) -> Optional[Document]:
@@ -145,3 +142,100 @@ class DocumentRepository:
         self.session.add(document)
         await self.session.commit()
         return document
+
+    async def process_document_text(self, document_id: str, storage: FileStorage) -> bool:
+        """
+        Process the document text to extract word frequencies and calculate term frequencies.
+        
+        Args:
+            document_id: ID of the document to process
+            storage: FileStorage service to access the document content
+            
+        Returns:
+            bool: True if processing was successful, False otherwise
+        """
+        logger.info(f"Processing document text for word frequencies - ID: {document_id}")
+        
+        document = await self.get(document_id)
+        if not document or not document.location:
+            logger.warning(f"Cannot process document - Document not found or no location: {document_id}")
+            return False
+            
+        try:
+            # Get file content
+            file_content = await storage.get_file_by_path(document.location)
+            if not file_content:
+                logger.warning(f"Document file not found in storage - ID: {document_id}, Location: {document.location}")
+                return False
+                
+            # Process text to count word frequencies
+            text = file_content.decode('utf-8', errors='replace')
+            word_counts = self._count_words(text)
+            
+            if not word_counts:
+                logger.warning(f"No words found in document - ID: {document_id}")
+                return False
+                
+            # Calculate term frequencies
+            max_frequency = max(word_counts.values())
+            
+            # Store word frequencies and term frequencies in database
+            word_frequencies = []
+            for word, frequency in word_counts.items():
+                # Calculate term frequency (normalized by max frequency)
+                tf = frequency / max_frequency
+                
+                word_freq = WordFrequency(
+                    word=word,
+                    frequency=frequency,
+                    tf_score=tf,
+                    document_id=document_id
+                )
+                word_frequencies.append(word_freq)
+                
+            # Add all word frequencies to database
+            self.session.add_all(word_frequencies)
+            await self.session.commit()
+            
+            logger.info(f"Successfully processed document - ID: {document_id}, Words: {len(word_frequencies)}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error processing document text - ID: {document_id}: {str(e)}", exc_info=True)
+            return False
+            
+    def _count_words(self, text: str) -> Dict[str, int]:
+        """
+        Count word frequencies in the document text.
+        
+        Args:
+            text: Document text content
+            
+        Returns:
+            Dict mapping words to their frequencies
+        """
+        # Convert to lowercase and split by non-alphanumeric characters
+        words = re.findall(r'\b[a-zA-Z0-9]+\b', text.lower())
+        
+        # Count word frequencies
+        word_counts = {}
+        for word in words:
+            if len(word) > 1:  # Skip single-character words
+                word_counts[word] = word_counts.get(word, 0) + 1
+                
+        return word_counts
+        
+    async def get_word_frequencies(self, document_id: str) -> Sequence[WordFrequency]:
+        """
+        Get word frequencies for a specific document.
+        
+        Args:
+            document_id: ID of the document
+            
+        Returns:
+            Sequence of WordFrequency objects
+        """
+        result = await self.session.execute(
+            select(WordFrequency).where(WordFrequency.document_id == document_id)
+        )
+        return result.scalars().all()

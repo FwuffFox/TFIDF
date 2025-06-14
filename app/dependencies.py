@@ -32,6 +32,12 @@ def get_corpus_repository(session: AsyncSession = Depends(get_session)):
     return CorpusRepository(session)
 
 
+def get_tfidf_service(doc_repo=Depends(get_document_repository)):
+    from app.services.tfidf_service import TFIDFService
+
+    return TFIDFService(doc_repo)
+
+
 def get_storage_service():
     from app.utils.storage import FileStorage
 
