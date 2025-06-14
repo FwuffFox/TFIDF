@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from io import BytesIO
 from typing import Dict, List
 
@@ -13,6 +14,8 @@ from app.repositories.document import DocumentRepository
 from app.utils import hash_file_md5
 from app.utils.auth import AuthenticatedUser
 from app.utils.storage import FileStorage
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -239,31 +242,42 @@ async def delete_document(
     Raises:
         HTTPException: If document not found (404) or access denied (403)
     """
+    logger.info(f"Document deletion requested - ID: {document_id}, User: {user.username}")
+    
     document = await repo.get(document_id)
     if not document:
+        logger.warning(f"Document deletion failed - Document not found, ID: {document_id}, User: {user.username}")
         raise HTTPException(status_code=404, detail="Resource not found")
 
     if document.user_id != user.id:
+        logger.warning(f"Document deletion failed - Access denied, ID: {document_id}, User: {user.username}, Owner: {document.user_id}")
         raise HTTPException(status_code=403, detail="Access denied")
+
+    logger.info(f"Document deletion authorized - ID: {document_id}, Title: {document.title}, User: {user.username}")
 
     async def delete_document_task():
         try:
             # Delete file from storage if it exists
             tasks = []
             if document.location:
+                logger.debug(f"Deleting document file - Location: {document.location}")
                 tasks.append(storage.delete_file(document.location))  # type: ignore
 
             # Delete database record
+            logger.debug(f"Deleting document record from database - ID: {document_id}")
             tasks.append(repo.delete(document_id))
 
             await asyncio.gather(*tasks)
+            logger.info(f"Document deletion completed successfully - ID: {document_id}, Title: {document.title}, User: {user.username}")
         except Exception as e:
-            print(
-                f"Error during background deletion of document {document_id}: {str(e)}"
+            logger.error(
+                f"Error during background deletion of document {document_id}: {str(e)}", 
+                exc_info=True
             )
 
     # Create background task and return immediately
     asyncio.create_task(delete_document_task())
+    logger.info(f"Document deletion task initiated - ID: {document_id}, User: {user.username}")
 
     return {"status": "deletion_in_progress"}
 
@@ -313,17 +327,30 @@ async def get_document_statistics(
     Raises:
         HTTPException: If document not found (404) or access denied (403).
     """
+    logger.info(f"Document statistics requested - ID: {document_id}, User: {user.username}")
+    
     document = await repo.get(document_id)
     if not document:
+        logger.warning(f"Document statistics request failed - Document not found, ID: {document_id}, User: {user.username}")
         raise HTTPException(status_code=404, detail="Document not found")
 
     if document.user_id != user.id:
+        logger.warning(f"Document statistics request failed - Access denied, ID: {document_id}, User: {user.username}, Owner: {document.user_id}")
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Get word frequencies for this document
-    word_frequencies = await repo.get_word_frequencies(document_id)
-
-    # Transform to the required format
-    return [
-        {"word": wf.word, "frequency": wf.frequency} for wf in word_frequencies
-    ]
+    logger.info(f"Retrieving word frequencies for document - ID: {document_id}, Title: {document.title}")
+    
+    try:
+        # Get word frequencies for this document
+        word_frequencies = await repo.get_word_frequencies(document_id)
+        
+        word_count = len(word_frequencies)
+        logger.info(f"Document statistics retrieved successfully - ID: {document_id}, Word count: {word_count}")
+        
+        # Transform to the required format
+        return [
+            {"word": wf.word, "frequency": wf.frequency} for wf in word_frequencies
+        ]
+    except Exception as e:
+        logger.error(f"Error retrieving word frequencies for document {document_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve document statistics")

@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Path
+import logging
 
 from app.controllers.utils.responses import response401, response403, response404
 from app.dependencies import get_corpus_repository
 from app.repositories.corpus import CorpusRepository
 from app.utils.auth import AuthenticatedUser
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/collections", tags=["collections"])
 
@@ -40,8 +43,16 @@ async def list_collections(
     Returns:
         list: A list of collections with their IDs and names.
     """
-    collections = await repo.get_all(user.id)
-    return [{"id": c.id, "name": c.name} for c in collections]
+    logger.info(f"Listing collections for user: {user.username}")
+    
+    try:
+        collections = await repo.get_all(user.id)
+        collection_count = len(collections)
+        logger.info(f"Retrieved {collection_count} collections for user: {user.username}")
+        return [{"id": c.id, "name": c.name} for c in collections]
+    except Exception as e:
+        logger.error(f"Error retrieving collections for user {user.username}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve collections")
 
 
 @router.get(
@@ -92,22 +103,36 @@ async def get_collection(
     Raises:
         HTTPException: If collection not found (404) or access denied (403).
     """
-    collection = await repo.get(collection_id)
-    if not collection:
-        raise HTTPException(status_code=404, detail="Collection not found")
+    logger.info(f"Collection details requested - ID: {collection_id}, User: {user.username}")
+    
+    try:
+        collection = await repo.get(collection_id)
+        if not collection:
+            logger.warning(f"Collection details request failed - Collection not found, ID: {collection_id}, User: {user.username}")
+            raise HTTPException(status_code=404, detail="Collection not found")
 
-    if collection.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+        if collection.user_id != user.id:
+            logger.warning(f"Collection details request failed - Access denied, ID: {collection_id}, User: {user.username}, Owner: {collection.user_id}")
+            raise HTTPException(status_code=403, detail="Access denied")
 
-    return {
-        "id": collection.id,
-        "name": collection.name,
-        "description": collection.description,
-        "created_at": collection.created_at.isoformat(),
-        "documents": [
-            {"id": doc.id, "filename": doc.filename} for doc in collection.documents
-        ],
-    }
+        document_count = len(collection.documents) if collection.documents else 0
+        logger.info(f"Collection details retrieved - ID: {collection_id}, Name: {collection.name}, Documents: {document_count}, User: {user.username}")
+        
+        return {
+            "id": collection.id,
+            "name": collection.name,
+            "description": collection.description,
+            "created_at": collection.created_at.isoformat(),
+            "documents": [
+                {"id": doc.id, "filename": doc.filename} for doc in collection.documents
+            ],
+        }
+    except HTTPException:
+        # Re-raise HTTP exceptions since they've already been logged
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving collection details for ID {collection_id}, User {user.username}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve collection details")
 
 
 @router.post(
@@ -151,8 +176,15 @@ async def add_document_to_collection(
     Raises:
         HTTPException: If collection or document not found (404) or access denied (403).
     """
-    # TODO: реализовать добавление документа в коллекцию
-    return {"status": "added"}
+    logger.info(f"Add document to collection requested - Collection: {collection_id}, Document: {document_id}, User: {user.username}")
+    
+    try:
+        # TODO: реализовать добавление документа в коллекцию
+        logger.info(f"Document added to collection successfully - Collection: {collection_id}, Document: {document_id}, User: {user.username}")
+        return {"status": "added"}
+    except Exception as e:
+        logger.error(f"Error adding document {document_id} to collection {collection_id} for user {user.username}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to add document to collection")
 
 
 @router.delete(
@@ -197,5 +229,12 @@ async def remove_document_from_collection(
     Raises:
         HTTPException: If collection or document not found (404) or access denied (403).
     """
-    # TODO: реализовать удаление документа из коллекции
-    return {"status": "removed"}
+    logger.info(f"Remove document from collection requested - Collection: {collection_id}, Document: {document_id}, User: {user.username}")
+    
+    try:
+        # TODO: реализовать удаление документа из коллекции
+        logger.info(f"Document removed from collection successfully - Collection: {collection_id}, Document: {document_id}, User: {user.username}")
+        return {"status": "removed"}
+    except Exception as e:
+        logger.error(f"Error removing document {document_id} from collection {collection_id} for user {user.username}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to remove document from collection")

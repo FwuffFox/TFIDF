@@ -1,6 +1,7 @@
 # Контроллер для работы с пользователями
 from datetime import datetime
 from typing import Annotated
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
@@ -16,6 +17,8 @@ from app.utils.auth import (AuthenticatedUser, create_access_token,
                             oauth2_scheme)
 from app.utils.storage import FileStorage
 from app.utils.token_manager import TokenManager
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/user", tags=["user"])
 
@@ -320,18 +323,33 @@ async def delete_user(
     Raises:
         HTTPException: 401 error if the provided password is invalid.
     """
+    logger.info(f"Account deletion requested for user: {user.username}")
+    
     if not await user_repo.check_password(user, password):
+        logger.warning(f"Failed account deletion attempt for user: {user.username} - Invalid password")
         raise HTTPException(status_code=401, detail="Invalid password")
 
-    async def background_task():
-        await token_manager.blacklist_all_user_tokens(user.username)
-        
-        user_documents = await doc_repo.get_by_user(user.id)
-        tasks = [storage.delete_file_by_path(doc.location) for doc in user_documents]
-        tasks.append(user_repo.delete(user.id))
-        
+    logger.info(f"Password verified for user: {user.username}, proceeding with account deletion")
 
-        await asyncio.gather(*tasks)
+    logger.info(f"Blacklisting all tokens for user: {user.username}")
+    await token_manager.blacklist_all_user_tokens(user.username)
+    
+    async def background_task():
+        try:
+            logger.info(f"Retrieving documents for user: {user.id}")
+            user_documents = await doc_repo.get_by_user(user.id)
+            logger.info(f"Found {len(user_documents)} documents to delete for user: {user.username}")
+            
+            delete_file_tasks = [storage.delete_file_by_path(doc.location) for doc in user_documents]
+            logger.info(f"Deleting user account and associated documents for user: {user.username}")
+            tasks = delete_file_tasks + [user_repo.delete(user.id)]
+            
+            await asyncio.gather(*tasks)
+            logger.info(f"Successfully completed account deletion for user: {user.username}")
+        except Exception as e:
+            logger.error(f"Error during account deletion for user {user.username}: {str(e)}")
+            # We can't raise an HTTP exception here as this is a background task
         
     asyncio.create_task(background_task())
+    logger.info(f"Account deletion process initiated for user: {user.username}")
     return {"status": "user deleted, all sessions invalidated"}
