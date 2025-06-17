@@ -8,6 +8,7 @@ from fastapi import Depends, FastAPI, Request
 from app.controllers.collection import router as collection_router
 from app.controllers.document import router as document_router
 from app.controllers.user import router as user_router
+from app.controllers.metrics import router as metrics_router
 from app.db import engine
 from app.db.models import Base
 from app.dependencies import get_cache_storage
@@ -83,6 +84,7 @@ app = FastAPI(
 app.include_router(collection_router)
 app.include_router(document_router)
 app.include_router(user_router)
+app.include_router(metrics_router)
 
 
 @app.get("/")
