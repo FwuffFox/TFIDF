@@ -13,6 +13,11 @@ router = APIRouter(
 @router.get("/",
             summary="Get Metrics",
             description="Retrieve application metrics such as request counts, error rates, and performance statistics.",
-            response_model=dict[str, object],)
+            responses={
+                200: {
+                    "description": "Metrics retrieved successfully",
+                    "content": {"application/json": {"example": {"request_count": 100, "error_rate": 0.05}}},
+                },
+            })
 async def get_metrics(user: AuthenticatedUser, metrics_service: Depends(get_metrics_service)):
     return await metrics_service.get_metrics()
