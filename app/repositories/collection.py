@@ -2,6 +2,7 @@ from typing import Optional, Sequence
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db.models import Collection
 
@@ -22,6 +23,13 @@ class CollectionRepository:
         """
         result = await self.session.execute(
             select(Collection).where(Collection.id == collection_id)
+        )
+        return result.scalar_one_or_none()
+    
+    async def get_with_documents(self, collection_id: str) -> Optional[Collection]:
+        result = await self.session.execute(
+            select(Collection).where(Collection.id == collection_id)
+            .options(selectinload(Collection.documents))
         )
         return result.scalar_one_or_none()
 
@@ -91,7 +99,7 @@ class CollectionRepository:
         from app.db.models import Document
 
         # Get the collection
-        collection = await self.get(collection_id)
+        collection = await self.get_with_documents(collection_id)
         if not collection:
             return False
 
@@ -126,7 +134,7 @@ class CollectionRepository:
         from app.db.models import Document
 
         # Get the collection
-        collection = await self.get(collection_id)
+        collection = await self.get_with_documents(collection_id)
         if not collection:
             return False
 
@@ -146,3 +154,8 @@ class CollectionRepository:
         collection.documents.remove(document)
         await self.session.commit()
         return True
+
+
+
+
+

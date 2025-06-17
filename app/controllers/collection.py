@@ -167,7 +167,7 @@ async def get_collection(
     )
 
     try:
-        collection = await repo.get(collection_id)
+        collection = await repo.get_with_documents(collection_id)
         if not collection:
             logger.warning(
                 f"Collection details request failed - Collection not found, ID: {collection_id}, User: {user.username}"
