@@ -4,10 +4,9 @@ from typing import AsyncGenerator, Dict
 import pytest
 from fastapi import Depends
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
-                                    create_async_engine)
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.dependencies import get_cache_storage, get_session, get_token_manager
+from app.dependencies import get_cache_storage, get_async_session, get_token_manager
 from app.main import app
 from tests.mock_redis import MockRedisClient
 
@@ -57,7 +56,7 @@ def override_deps():
     Override app dependencies for testing.
     Using function scope ensures each test gets fresh dependencies.
     """
-    app.dependency_overrides[get_session] = get_test_session
+    app.dependency_overrides[get_async_session] = get_test_session
     app.dependency_overrides[get_cache_storage] = get_test_cache_storage
 
     yield
@@ -85,3 +84,4 @@ async def client():
     # Drop all tables after the test to ensure a clean state
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+

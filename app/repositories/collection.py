@@ -61,8 +61,10 @@ class CollectionRepository:
         )
         return result.scalars().all()
 
-    async def create(self, name: str, user_id: str):
-        collection = Collection(name=name, user_id=user_id)
+    async def create(
+        self, name: str, user_id: str, description: Optional[str] = None
+    ) -> Collection:
+        collection = Collection(name=name, user_id=user_id, description=description)
         self.session.add(collection)
         await self.session.commit()
         await self.session.refresh(collection)

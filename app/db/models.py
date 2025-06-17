@@ -4,8 +4,7 @@ import datetime
 import uuid
 from typing import Optional
 
-from sqlalchemy import (Column, DateTime, Float, ForeignKey, Integer, String,
-                        Table, Text)
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Table, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -35,7 +34,7 @@ class User(Base):
     )  # Bcrypted password
     email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.now(datetime.UTC)
+        DateTime(timezone=True), default=datetime.datetime.now(datetime.UTC)
     )
 
     # Relationships
@@ -57,7 +56,7 @@ class Collection(Base):
     description: Mapped[str | None] = mapped_column(Text)
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.now(datetime.UTC)
+        DateTime(timezone=True), default=datetime.datetime.now(datetime.UTC)
     )
 
     # Relationships
@@ -78,7 +77,7 @@ class Document(Base):
     hash: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.now(datetime.UTC)
+        DateTime(timezone=True), default=datetime.datetime.now(datetime.UTC)
     )
 
     # Relationships

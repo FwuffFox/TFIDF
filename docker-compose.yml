@@ -31,7 +31,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - .:/app/storage
+      - "file_storage:/app/storage"
     depends_on:
       db:
         condition: service_healthy
@@ -40,3 +40,4 @@ services:
 
 volumes:
   pgdata:
+  file_storage:

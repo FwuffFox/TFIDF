@@ -9,12 +9,15 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
 from app.controllers.utils.responses import response401
-from app.dependencies import (get_document_repository, get_storage_service,
-                              get_token_manager, get_user_repository)
+from app.dependencies import (
+    get_document_repository,
+    get_storage_service,
+    get_token_manager,
+    get_user_repository,
+)
 from app.repositories.document import DocumentRepository
 from app.repositories.user import UserRepository
-from app.utils.auth import (AuthenticatedUser, create_access_token,
-                            oauth2_scheme)
+from app.utils.auth import AuthenticatedUser, create_access_token, oauth2_scheme
 from app.utils.storage import FileStorage
 from app.utils.token_manager import TokenManager
 
@@ -326,32 +329,23 @@ async def delete_user(
     logger.info(f"Blacklisting all tokens for user: {user.username}")
     await token_manager.blacklist_all_user_tokens(user.username)
 
-    async def background_task():
-        try:
-            logger.info(f"Retrieving documents for user: {user.id}")
-            user_documents = await doc_repo.get_by_user(user.id)
-            logger.info(
-                f"Found {len(user_documents)} documents to delete for user: {user.username}"
-            )
-
-            delete_file_tasks = [
-                storage.delete_file_by_path(doc.location) for doc in user_documents
-            ]
-            logger.info(
-                f"Deleting user account and associated documents for user: {user.username}"
-            )
-            tasks = delete_file_tasks + [user_repo.delete(user.id)]
-
-            await asyncio.gather(*tasks)
-            logger.info(
-                f"Successfully completed account deletion for user: {user.username}"
-            )
-        except Exception as e:
-            logger.error(
-                f"Error during account deletion for user {user.username}: {str(e)}"
-            )
-            # We can't raise an HTTP exception here as this is a background task
-
-    asyncio.create_task(background_task())
-    logger.info(f"Account deletion process initiated for user: {user.username}")
+    logger.info(f"Retrieving documents for user: {user.id}")
+    user_documents = await doc_repo.get_by_user(user.id)
+    logger.info(
+        f"Found {len(user_documents)} documents to delete for user: {user.username}"
+    )
+    
+    delete_file_tasks = [
+        storage.delete_file_by_path(doc.location) for doc in user_documents
+    ]
+    logger.info(
+        f"Deleting user account and associated documents for user: {user.username}"
+    )
+    tasks = delete_file_tasks + [user_repo.delete(user.id)]
+    
+    await asyncio.gather(*tasks)
+    logger.info(
+        f"Successfully completed account deletion for user: {user.username}"
+    )
+    
     return {"status": "user deleted, all sessions invalidated"}

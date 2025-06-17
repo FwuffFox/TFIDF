@@ -41,6 +41,14 @@ class FileStorage:
         Returns:
             Path: The full path to the file.
         """
+        if isinstance(path, str):
+            path = Path(path)
+            
+        # If path starts with "storage", remove it to prevent duplication
+        if isinstance(path, Path) and len(path.parts) > 0 and path.parts[0] == "storage":
+            # Remove the "storage" prefix to avoid duplication
+            path = Path(*path.parts[1:])
+            
         if not path.is_absolute():
             path = self.base_path / path
 

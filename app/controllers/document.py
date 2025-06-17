@@ -3,16 +3,15 @@ import logging
 from io import BytesIO
 from typing import Dict, List, Optional
 
-from fastapi import (APIRouter, Depends, File, HTTPException, Path, Query,
-                     UploadFile)
+from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, UploadFile
 from fastapi.responses import StreamingResponse
 
-from app.controllers.utils.responses import (response401, response403,
-                                             response404)
-from app.dependencies import (get_document_repository, get_storage_service,
-                              get_tfidf_service)
+from app.controllers.utils.responses import response401, response403, response404
+from app.dependencies import (
+    get_document_repository,
+    get_storage_service, get_async_session,
+)
 from app.repositories.document import DocumentRepository
-from app.utils.tfidf_service import TFIDFService
 from app.utils import hash_file_md5
 from app.utils.auth import AuthenticatedUser
 from app.utils.storage import FileStorage
@@ -155,29 +154,18 @@ async def create_document(
     logger.debug(f"Document location updated - ID: {document.id}")
 
     # Process document text to extract word frequencies and term frequencies
-    async def process_document_task():
-        try:
-            logger.info(
-                f"Starting background processing of document text - ID: {document.id}"
-            )
-            success = await doc_repo.process_document_text(
-                document.id, filebytes.decode("utf-8", errors="ignore")
-            )
-            if success:
-                logger.info(
-                    f"Document text processing completed successfully - ID: {document.id}"
-                )
-            else:
-                logger.warning(f"Document text processing failed - ID: {document.id}")
-        except Exception as e:
-            logger.error(
-                f"Error during document text processing - ID: {document.id}: {str(e)}",
-                exc_info=True,
-            )
-
-    # Execute document processing in background
-    asyncio.create_task(process_document_task())
-    logger.info(f"Document processing task initiated - ID: {document.id}")
+    logger.info(
+        f"Starting background processing of document text - ID: {document.id}"
+    )
+    success = await doc_repo.process_document_text(
+        document.id, filebytes.decode("utf-8", errors="ignore")
+    )
+    if success:
+        logger.info(
+            f"Document text processing completed successfully - ID: {document.id}"
+        )
+    else:
+        logger.warning(f"Document text processing failed - ID: {document.id}")
 
     return {"status": "created", "id": document.id, "title": document.title}
 
@@ -308,141 +296,79 @@ async def delete_document(
         f"Document deletion authorized - ID: {document_id}, Title: {document.title}, User: {user.username}"
     )
 
-    async def delete_document_task():
-        try:
-            # Delete file from storage if it exists
-            tasks = []
-            if document.location:
-                logger.debug(f"Deleting document file - Location: {document.location}")
-                tasks.append(storage.delete_file_by_path(str(document.location)))
+    tasks = []
+    if document.location:
+        logger.debug(f"Deleting document file - Location: {document.location}")
+        tasks.append(storage.delete_file_by_path(str(document.location)))
 
-            # Delete database record
-            logger.debug(f"Deleting document record from database - ID: {document_id}")
-            tasks.append(repo.delete(document_id))
+    # Delete database record
+    logger.debug(f"Deleting document record from database - ID: {document_id}")
+    tasks.append(repo.delete(document_id))
 
-            await asyncio.gather(*tasks)
-            logger.info(
-                f"Document deletion completed successfully - ID: {document_id}, Title: {document.title}, User: {user.username}"
-            )
-        except Exception as e:
-            logger.error(
-                f"Error during background deletion of document {document_id}: {str(e)}",
-                exc_info=True,
-            )
-
-    # Create background task and return immediately
-    asyncio.create_task(delete_document_task())
+    await asyncio.gather(*tasks)
     logger.info(
-        f"Document deletion task initiated - ID: {document_id}, User: {user.username}"
+        f"Document deletion completed successfully - ID: {document_id}, Title: {document.title}, User: {user.username}"
     )
 
     return {"status": "deletion_in_progress"}
 
 
 @router.get(
-    "/{document_id}/statistics",
-    response_model=List[Dict],
-    summary="Get document word statistics",
-    description="Retrieves word frequency statistics and TF-IDF analysis for a specific document, optionally in the context of a collection.",
+    "/{document_id}/tfidf",
+    summary="Calculate TF-IDF scores",
+    description="Calculates TF-IDF scores for a document. If a collection ID is provided, IDF is calculated based on documents in that collection. Otherwise, it uses all documents from the user.",
     responses={
         200: {
-            "description": "List of words with their frequencies and TF-IDF scores",
-            "content": {
-                "application/json": {
-                    "example": [
-                        {
-                            "word": "example",
-                            "frequency": 5,
-                            "tf": 0.8333,
-                            "idf": 1.6931,
-                            "tfidf": 1.4109,
-                        },
-                        {
-                            "word": "document",
-                            "frequency": 3,
-                            "tf": 0.5,
-                            "idf": 1.0986,
-                            "tfidf": 0.5493,
-                        },
-                    ]
-                }
-            },
+            "description": "TF-IDF scores for the document",
+            "content": {"application/json": {}},
         },
         403: response403,
         404: response404,
     },
 )
-async def get_document_statistics(
+async def calculate_tfidf(
     user: AuthenticatedUser,
-    document_id: str = Path(
-        ..., description="The ID of the document to get statistics for"
-    ),
+    document_id: str = Path(..., description="The ID of the document to calculate TF-IDF for"),
     collection_id: Optional[str] = Query(
-        None,
-        description="Optional collection ID to provide collection context for TF-IDF calculation",
+        None, description="Collection ID to scope the TF-IDF calculation (optional)"
     ),
-    repo: DocumentRepository = Depends(get_document_repository),
-    tfidf_service: TFIDFService = Depends(get_tfidf_service),
+    doc_repo: DocumentRepository = Depends(get_document_repository),
 ):
     """
-    Retrieve word frequency statistics and TF-IDF analysis for a specific document.
-
-    This endpoint returns the frequency of each word in the document along with
-    TF-IDF scores to identify important words. The document must belong to the requesting user.
-    When a collection ID is provided, the TF-IDF calculation uses the collection context.
-
-    Args:
-        user (AuthenticatedUser): The authenticated user.
-        document_id (str): ID of the document to analyze.
-        collection_id (Optional[str]): Optional collection ID to provide collection context.
-        repo (DocumentRepository): Document repository dependency.
-        tfidf_service (TFIDFService): TFIDF calculation service dependency.
-
-    Returns:
-        List[Dict]: List of words with their frequencies and TF-IDF scores.
-
-    Raises:
-        HTTPException: If document not found (404) or access denied (403).
+    Calculate TF-IDF scores for a document.
     """
-    logger.info(
-        f"Document statistics requested - ID: {document_id}, User: {user.username}, Collection: {collection_id}"
-    )
-
-    document = await repo.get(document_id)
+    # Get the document to check ownership
+    document = await doc_repo.get(document_id)
     if not document:
-        logger.warning(
-            f"Document statistics request failed - Document not found, ID: {document_id}, User: {user.username}"
-        )
         raise HTTPException(status_code=404, detail="Document not found")
-
+    
+    # Check if user has access to this document
     if document.user_id != user.id:
-        logger.warning(
-            f"Document statistics request failed - Access denied, ID: {document_id}, User: {user.username}, Owner: {document.user_id}"
-        )
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    logger.info(
-        f"Retrieving word frequencies for document - ID: {document_id}, Title: {document.title}"
+        raise HTTPException(status_code=403, detail="Not authorized to access this document")
+    
+    # If collection is specified, verify the document is in that collection
+    if collection_id:
+        if not any(c.id == collection_id for c in document.collections):
+            raise HTTPException(
+                status_code=400, 
+                detail="Document is not part of the specified collection"
+            )
+    
+    # Calculate TF-IDF scores
+    tfidf_scores = await doc_repo.calculate_tfidf(
+        document_id=document_id,
+        user_id=user.id,
+        collection_id=collection_id
     )
+    
+    # Sort results by TF-IDF score (highest first) and limit to top 100
+    sorted_scores = sorted(tfidf_scores.items(), key=lambda x: x[1]["tfidf"], reverse=True)[:100]
+    
+    return {
+        "document_id": document_id,
+        "collection_id": collection_id,
+        "scores": sorted_scores
+    }
 
-    try:
-        # Calculate TF-IDF scores
-        logger.info(
-            f"Calculating TF-IDF scores for document - ID: {document_id}, Collection: {collection_id}"
-        )
-        tfidf_results = await tfidf_service.calculate_tfidf_for_document(
-            document_id, collection_id
-        )
 
-        logger.info(
-            f"TF-IDF analysis completed for document - ID: {document_id}, Found {len(tfidf_results)} terms"
-        )
-        return tfidf_results
-    except Exception as e:
-        logger.error(
-            f"Error retrieving statistics for document {document_id}: {str(e)}",
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=500, detail="Failed to retrieve document statistics"
-        )
+

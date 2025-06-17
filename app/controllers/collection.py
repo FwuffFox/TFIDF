@@ -1,16 +1,12 @@
 import logging
 import math
-from typing import Dict, List
+from typing import Annotated, Dict, List
 
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, HTTPException, Path
+from pydantic import BaseModel
 
-from app.controllers.utils.responses import (response401, response403,
-                                             response404)
-from app.dependencies import (get_collection_repository,
-                              get_document_repository, get_tfidf_service)
-from app.repositories.collection import CollectionRepository
-from app.repositories.document import DocumentRepository
-from app.utils.tfidf_service import TFIDFService
+from app.controllers.utils.responses import response401, response403, response404
+from app.dependencies import CollectionRepository, DocumentRepository
 from app.utils.auth import AuthenticatedUser
 
 logger = logging.getLogger(__name__)
@@ -18,10 +14,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/collections", tags=["collections"])
 
 
+class CreateCollectionDTO(BaseModel):
+    name: str
+    description: str = None
+
+
 @router.get(
     "/",
     summary="List collections",
-    description="Retrieves all document collections belonging to the authenticated user.",
+    response_model=None,
     responses={
         200: {
             "description": "List of user's collections",
@@ -39,14 +40,14 @@ router = APIRouter(prefix="/collections", tags=["collections"])
 )
 async def list_collections(
     user: AuthenticatedUser,
-    repo: CollectionRepository = Depends(get_collection_repository),
+    collection_repo: CollectionRepository,
 ):
     """
     List all collections belonging to the authenticated user.
 
     Args:
         user (AuthenticatedUser): The authenticated user.
-        repo (CollectionRepository): Repository for collection operations.
+        collection_repo (CollectionRepository): Repository for collection operations.
 
     Returns:
         list: A list of collections with their IDs and names.
@@ -54,7 +55,7 @@ async def list_collections(
     logger.info(f"Listing collections for user: {user.username}")
 
     try:
-        collections = await repo.get_all(user.id)
+        collections = await collection_repo.get_by_user(user.id)
         collection_count = len(collections)
         logger.info(
             f"Retrieved {collection_count} collections for user: {user.username}"
@@ -66,6 +67,49 @@ async def list_collections(
             exc_info=True,
         )
         raise HTTPException(status_code=500, detail="Failed to retrieve collections")
+
+
+@router.post(
+    "/",
+    summary="Create a new collection",
+    description="Creates a new collection.",
+    status_code=201,
+    responses={
+        201: {
+            "description": "Collection created successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": "col1",
+                        "name": "New Collection",
+                        "description": "Description of the new collection",
+                        "created_at": "2025-05-12T10:30:00",
+                    }
+                }
+            },
+        },
+        403: response403,
+    },
+)
+async def create_collection(
+    user: AuthenticatedUser,
+    collection_data: CreateCollectionDTO,
+    collection_repo: CollectionRepository,
+):
+    logger.info(f"Creating collection: {collection_data.name}")
+    try:
+        collection = await collection_repo.create(collection_data.name, user.id, collection_data.description)
+        logger.info(f"Collection created successfully: {collection.id}")
+        
+        return {
+            "id": collection.id,
+            "name": collection.name,
+            "description": collection.description,
+            "created_at": collection.created_at.isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Error creating collection: {collection_data.name}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to create collection")
 
 
 @router.get(
@@ -96,8 +140,10 @@ async def list_collections(
 )
 async def get_collection(
     user: AuthenticatedUser,
-    collection_id: str = Path(..., description="The ID of the collection to retrieve"),
-    repo: CollectionRepository = Depends(get_collection_repository),
+    collection_id: Annotated[
+        str, Path(description="The ID of the collection to retrieve")
+    ],
+    repo: CollectionRepository,
 ):
     """
     Get detailed information about a specific collection.
@@ -145,7 +191,7 @@ async def get_collection(
             "description": collection.description,
             "created_at": collection.created_at.isoformat(),
             "documents": [
-                {"id": doc.id, "filename": doc.filename} for doc in collection.documents
+                {"id": doc.id, "title": doc.title} for doc in collection.documents
             ],
         }
     except HTTPException:
@@ -176,10 +222,10 @@ async def get_collection(
 )
 async def add_document_to_collection(
     user: AuthenticatedUser,
-    collection_id: str = Path(..., description="The ID of the collection"),
-    document_id: str = Path(..., description="The ID of the document to add"),
-    collection_repo: CollectionRepository = Depends(get_collection_repository),
-    doc_repo: DocumentRepository = Depends(get_document_repository),
+    collection_id: Annotated[str, Path(..., description="The ID of the collection")],
+    document_id: Annotated[str, Path(..., description="The ID of the document to add")],
+    collection_repo: CollectionRepository,
+    doc_repo: DocumentRepository,
 ):
     """
     Add a document to a collection.
@@ -210,27 +256,35 @@ async def add_document_to_collection(
         if not collection:
             logger.warning(f"Collection not found, ID: {collection_id}")
             raise HTTPException(status_code=404, detail="Collection not found")
-        
+
         if collection.user_id != user.id:
-            logger.warning(f"Access to collection denied, ID: {collection_id}, User: {user.username}")
+            logger.warning(
+                f"Access to collection denied, ID: {collection_id}, User: {user.username}"
+            )
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         # Check if document exists and belongs to the user
         document = await doc_repo.get(document_id)
         if not document:
             logger.warning(f"Document not found, ID: {document_id}")
             raise HTTPException(status_code=404, detail="Document not found")
-        
+
         if document.user_id != user.id:
-            logger.warning(f"Access to document denied, ID: {document_id}, User: {user.username}")
+            logger.warning(
+                f"Access to document denied, ID: {document_id}, User: {user.username}"
+            )
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         # Add document to collection
         result = await collection_repo.add_document(collection_id, document_id)
         if not result:
-            logger.error(f"Failed to add document to collection - Collection: {collection_id}, Document: {document_id}")
-            raise HTTPException(status_code=500, detail="Failed to add document to collection")
-        
+            logger.error(
+                f"Failed to add document to collection - Collection: {collection_id}, Document: {document_id}"
+            )
+            raise HTTPException(
+                status_code=500, detail="Failed to add document to collection"
+            )
+
         logger.info(
             f"Document added to collection successfully - Collection: {collection_id}, Document: {document_id}, User: {user.username}"
         )
@@ -263,10 +317,12 @@ async def add_document_to_collection(
 )
 async def remove_document_from_collection(
     user: AuthenticatedUser,
-    collection_id: str = Path(..., description="The ID of the collection"),
-    document_id: str = Path(..., description="The ID of the document to remove"),
-    collection_repo: CollectionRepository = Depends(get_collection_repository),
-    doc_repo: DocumentRepository = Depends(get_document_repository),
+    collection_id: Annotated[str, Path(..., description="The ID of the collection")],
+    document_id: Annotated[
+        str, Path(..., description="The ID of the document to remove")
+    ],
+    collection_repo: CollectionRepository,
+    doc_repo: DocumentRepository,
 ):
     """
     Remove a document from a collection.
@@ -298,27 +354,35 @@ async def remove_document_from_collection(
         if not collection:
             logger.warning(f"Collection not found, ID: {collection_id}")
             raise HTTPException(status_code=404, detail="Collection not found")
-        
+
         if collection.user_id != user.id:
-            logger.warning(f"Access to collection denied, ID: {collection_id}, User: {user.username}")
+            logger.warning(
+                f"Access to collection denied, ID: {collection_id}, User: {user.username}"
+            )
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         # Check if document exists and belongs to the user
         document = await doc_repo.get(document_id)
         if not document:
             logger.warning(f"Document not found, ID: {document_id}")
             raise HTTPException(status_code=404, detail="Document not found")
-        
+
         if document.user_id != user.id:
-            logger.warning(f"Access to document denied, ID: {document_id}, User: {user.username}")
+            logger.warning(
+                f"Access to document denied, ID: {document_id}, User: {user.username}"
+            )
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         # Remove document from collection
         result = await collection_repo.remove_document(collection_id, document_id)
         if not result:
-            logger.error(f"Failed to remove document from collection - Collection: {collection_id}, Document: {document_id}")
-            raise HTTPException(status_code=500, detail="Failed to remove document from collection")
-        
+            logger.error(
+                f"Failed to remove document from collection - Collection: {collection_id}, Document: {document_id}"
+            )
+            raise HTTPException(
+                status_code=500, detail="Failed to remove document from collection"
+            )
+
         logger.info(
             f"Document removed from collection successfully - Collection: {collection_id}, Document: {document_id}, User: {user.username}"
         )
@@ -371,10 +435,11 @@ async def remove_document_from_collection(
 )
 async def get_collection_statistics(
     user: AuthenticatedUser,
-    collection_id: str = Path(..., description="The ID of the collection to analyze"),
-    collection_repo: CollectionRepository = Depends(get_collection_repository),
-    doc_repo: DocumentRepository = Depends(get_document_repository),
-    tfidf_service: TFIDFService = Depends(get_tfidf_service),
+    collection_id: Annotated[
+        str, Path(description="The ID of the collection to analyze")
+    ],
+    collection_repo: CollectionRepository,
+    doc_repo: DocumentRepository,
 ):
     """
     Retrieve word statistics for all documents in a collection.
@@ -492,3 +557,4 @@ async def get_collection_statistics(
         raise HTTPException(
             status_code=500, detail="Failed to calculate collection statistics"
         )
+

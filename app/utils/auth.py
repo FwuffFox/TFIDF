@@ -10,8 +10,11 @@ from passlib.context import CryptContext
 from app.db.models import User
 from app.dependencies import get_token_manager, get_user_repository
 from app.repositories.user import UserRepository
-from app.utils.token_manager import (BLACKLIST_KEY_PREFIX,
-                                     USER_TOKEN_KEY_PREFIX, TokenManager)
+from app.utils.token_manager import (
+    BLACKLIST_KEY_PREFIX,
+    USER_TOKEN_KEY_PREFIX,
+    TokenManager,
+)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/user/login")
