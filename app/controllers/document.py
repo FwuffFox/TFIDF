@@ -325,9 +325,7 @@ async def calculate_tfidf(
     collection_id: Optional[str] = Query(
         None, description="Collection ID to scope the TF-IDF calculation (optional)"
     ),
-    limit: Annotated[int, Query(50, ge=1, le=100)] = Query(
-        50, description="Maximum number of terms to return in the TF-IDF scores"
-    ),
+    limit: Annotated[int, Query(..., ge=1, le=100,description="Maximum number of terms to return in the TF-IDF scores")] = 50,
     doc_repo: DocumentRepository = Depends(get_document_repository),
 ):
     """
