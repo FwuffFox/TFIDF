@@ -338,7 +338,7 @@ async def calculate_tfidf(
     Calculate TF-IDF scores for a document.
     """
     # Get the document to check ownership
-    document = await doc_repo.get(document_id)
+    document = await doc_repo.get_with_collections(document_id)
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
     

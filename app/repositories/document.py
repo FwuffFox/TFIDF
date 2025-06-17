@@ -4,6 +4,7 @@ from typing import Dict, Optional, Sequence
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db.models import Document, WordFrequency, Collection
 
@@ -26,6 +27,21 @@ class DocumentRepository:
         """
         result = await self.session.execute(
             select(Document).where(Document.id == document_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_with_collections(self, document_id: str) -> Optional[Document]:
+        """
+        Retrieve a document by its ID.
+
+        Args:
+            document_id (str): The ID of the document to retrieve.
+
+        Returns:
+            Optional[Document]: The Document object if found, otherwise None.
+        """
+        result = await self.session.execute(
+            select(Document).where(Document.id == document_id).options(selectinload(Document.collections))
         )
         return result.scalar_one_or_none()
 
