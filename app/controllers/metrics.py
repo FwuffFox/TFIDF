@@ -4,6 +4,7 @@ from fastapi.params import Depends
 from app.controllers.utils.responses import response401
 from app.dependencies import get_metrics_service
 from app.utils.auth import AuthenticatedUser
+from app.utils.metrics import MetricsService
 
 router = APIRouter(
     prefix="/metrics",
@@ -19,5 +20,5 @@ router = APIRouter(
                     "content": {"application/json": {"example": {"request_count": 100, "error_rate": 0.05}}},
                 },
             })
-async def get_metrics(user: AuthenticatedUser, metrics_service: Depends(get_metrics_service)):
+async def get_metrics(user: AuthenticatedUser, metrics_service: MetricsService = Depends(get_metrics_service)):
     return await metrics_service.get_metrics()
