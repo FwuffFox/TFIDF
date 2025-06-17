@@ -4,9 +4,11 @@ from typing import AsyncGenerator, Dict
 import pytest
 from fastapi import Depends
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
+                                    create_async_engine)
 
-from app.dependencies import get_cache_storage, get_async_session, get_token_manager
+from app.dependencies import (get_async_session, get_cache_storage,
+                              get_token_manager)
 from app.main import app
 from tests.mock_redis import MockRedisClient
 
@@ -84,4 +86,3 @@ async def client():
     # Drop all tables after the test to ensure a clean state
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-

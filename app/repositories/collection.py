@@ -25,10 +25,11 @@ class CollectionRepository:
             select(Collection).where(Collection.id == collection_id)
         )
         return result.scalar_one_or_none()
-    
+
     async def get_with_documents(self, collection_id: str) -> Optional[Collection]:
         result = await self.session.execute(
-            select(Collection).where(Collection.id == collection_id)
+            select(Collection)
+            .where(Collection.id == collection_id)
             .options(selectinload(Collection.documents))
         )
         return result.scalar_one_or_none()
@@ -154,8 +155,3 @@ class CollectionRepository:
         collection.documents.remove(document)
         await self.session.commit()
         return True
-
-
-
-
-

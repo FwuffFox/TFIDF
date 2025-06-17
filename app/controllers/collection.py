@@ -5,7 +5,8 @@ from typing import Annotated, Dict, List
 from fastapi import APIRouter, HTTPException, Path
 from pydantic import BaseModel
 
-from app.controllers.utils.responses import response401, response403, response404
+from app.controllers.utils.responses import (response401, response403,
+                                             response404)
 from app.dependencies import CollectionRepository, DocumentRepository
 from app.utils.auth import AuthenticatedUser
 
@@ -98,9 +99,11 @@ async def create_collection(
 ):
     logger.info(f"Creating collection: {collection_data.name}")
     try:
-        collection = await collection_repo.create(collection_data.name, user.id, collection_data.description)
+        collection = await collection_repo.create(
+            collection_data.name, user.id, collection_data.description
+        )
         logger.info(f"Collection created successfully: {collection.id}")
-        
+
         return {
             "id": collection.id,
             "name": collection.name,
@@ -108,7 +111,9 @@ async def create_collection(
             "created_at": collection.created_at.isoformat(),
         }
     except Exception as e:
-        logger.error(f"Error creating collection: {collection_data.name}", exc_info=True)
+        logger.error(
+            f"Error creating collection: {collection_data.name}", exc_info=True
+        )
         raise HTTPException(status_code=500, detail="Failed to create collection")
 
 
@@ -557,4 +562,3 @@ async def get_collection_statistics(
         raise HTTPException(
             status_code=500, detail="Failed to calculate collection statistics"
         )
-

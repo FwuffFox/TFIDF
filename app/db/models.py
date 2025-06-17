@@ -4,7 +4,8 @@ import datetime
 import uuid
 from typing import Optional
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Table, Text
+from sqlalchemy import (Column, DateTime, Float, ForeignKey, Integer, String,
+                        Table, Text)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 

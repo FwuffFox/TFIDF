@@ -9,15 +9,12 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
 from app.controllers.utils.responses import response401
-from app.dependencies import (
-    get_document_repository,
-    get_storage_service,
-    get_token_manager,
-    get_user_repository,
-)
+from app.dependencies import (get_document_repository, get_storage_service,
+                              get_token_manager, get_user_repository)
 from app.repositories.document import DocumentRepository
 from app.repositories.user import UserRepository
-from app.utils.auth import AuthenticatedUser, create_access_token, oauth2_scheme
+from app.utils.auth import (AuthenticatedUser, create_access_token,
+                            oauth2_scheme)
 from app.utils.storage import FileStorage
 from app.utils.token_manager import TokenManager
 
@@ -334,7 +331,7 @@ async def delete_user(
     logger.info(
         f"Found {len(user_documents)} documents to delete for user: {user.username}"
     )
-    
+
     delete_file_tasks = [
         storage.delete_file_by_path(doc.location) for doc in user_documents
     ]
@@ -342,10 +339,8 @@ async def delete_user(
         f"Deleting user account and associated documents for user: {user.username}"
     )
     tasks = delete_file_tasks + [user_repo.delete(user.id)]
-    
+
     await asyncio.gather(*tasks)
-    logger.info(
-        f"Successfully completed account deletion for user: {user.username}"
-    )
-    
+    logger.info(f"Successfully completed account deletion for user: {user.username}")
+
     return {"status": "user deleted, all sessions invalidated"}

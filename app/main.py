@@ -72,7 +72,12 @@ async def lifespan(app: FastAPI):
     logging.info("Application shutting down")
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    lifespan=lifespan,
+    title="Document Management API + TF-IDF",
+    description="API for managing documents, collections, and users with TF-IDF support.",
+    version=os.getenv("API_VERSION", "1.0"),
+)
 
 # Include routers for controllers
 app.include_router(collection_router)
@@ -97,28 +102,3 @@ async def status(request: Request):
 @app.get("/version")
 async def version(request: Request):
     return {"version": f"{os.getenv('APP_VERSION', '1.0.0')}"}
-
-
-@app.get("/metrics")
-async def metrics(request: Request, cache=Depends(get_cache_storage)):
-    files_processed = (await cache.get("files_processed")) or 0
-    min_time = await cache.get("min_processing_time")
-    max_time = (await cache.get("max_processing_time")) or 0
-    average_time = (await cache.get("average_processing_time")) or 0
-    last_time = (await cache.get("last_processing_time")) or 0
-    latest_file_timestamp = (
-        await cache.get("latest_file_processed_timestamp")
-    ) or "N/A"
-
-    # Handle infinity case for JSON serialization
-    if min_time is None or min_time == float("inf"):
-        min_time = None
-
-    return {
-        "files_processed": files_processed,
-        "min_processing_time": min_time,
-        "max_processing_time": max_time,
-        "average_processing_time": average_time,
-        "last_processing_time": last_time,
-        "latest_file_processed_timestamp": latest_file_timestamp,
-    }

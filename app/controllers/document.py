@@ -1,16 +1,16 @@
 import asyncio
 import logging
 from io import BytesIO
-from typing import Dict, List, Optional
+from typing import Annotated, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Path, Query, UploadFile
+from fastapi import (APIRouter, Depends, File, HTTPException, Path, Query,
+                     UploadFile)
 from fastapi.responses import StreamingResponse
 
-from app.controllers.utils.responses import response401, response403, response404
-from app.dependencies import (
-    get_document_repository,
-    get_storage_service, get_async_session,
-)
+from app.controllers.utils.responses import (response401, response403,
+                                             response404)
+from app.dependencies import (get_async_session, get_document_repository,
+                              get_storage_service)
 from app.repositories.document import DocumentRepository
 from app.utils import hash_file_md5
 from app.utils.auth import AuthenticatedUser
@@ -18,7 +18,8 @@ from app.utils.storage import FileStorage
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/documents", tags=["documents"])
+router = APIRouter(prefix="/documents", tags=["documents"], 
+                   responses={401: response401, 403: response403, 404: response404})
 
 
 @router.get(
@@ -38,8 +39,6 @@ router = APIRouter(prefix="/documents", tags=["documents"])
                 }
             },
         },
-        401: response401,
-        403: response403,
     },
 )
 async def list_documents(
@@ -154,9 +153,7 @@ async def create_document(
     logger.debug(f"Document location updated - ID: {document.id}")
 
     # Process document text to extract word frequencies and term frequencies
-    logger.info(
-        f"Starting background processing of document text - ID: {document.id}"
-    )
+    logger.info(f"Starting background processing of document text - ID: {document.id}")
     success = await doc_repo.process_document_text(
         document.id, filebytes.decode("utf-8", errors="ignore")
     )
@@ -180,8 +177,6 @@ async def create_document(
             "description": "The document file",
             "content": {"application/octet-stream": {}},
         },
-        403: response403,
-        404: response404,
     },
 )
 async def get_document(
@@ -247,8 +242,6 @@ async def get_document(
                 "application/json": {"example": {"status": "deletion_in_progress"}}
             },
         },
-        403: response403,
-        404: response404,
     },
 )
 async def delete_document(
@@ -322,15 +315,18 @@ async def delete_document(
             "description": "TF-IDF scores for the document",
             "content": {"application/json": {}},
         },
-        403: response403,
-        404: response404,
     },
 )
 async def calculate_tfidf(
     user: AuthenticatedUser,
-    document_id: str = Path(..., description="The ID of the document to calculate TF-IDF for"),
+    document_id: str = Path(
+        ..., description="The ID of the document to calculate TF-IDF for"
+    ),
     collection_id: Optional[str] = Query(
         None, description="Collection ID to scope the TF-IDF calculation (optional)"
+    ),
+    limit: Annotated[int, Query(50, ge=1, le=100)] = Query(
+        50, description="Maximum number of terms to return in the TF-IDF scores"
     ),
     doc_repo: DocumentRepository = Depends(get_document_repository),
 ):
@@ -341,34 +337,32 @@ async def calculate_tfidf(
     document = await doc_repo.get_with_collections(document_id)
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
-    
+
     # Check if user has access to this document
     if document.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to access this document")
-    
+        raise HTTPException(
+            status_code=403, detail="Not authorized to access this document"
+        )
+
     # If collection is specified, verify the document is in that collection
     if collection_id:
         if not any(c.id == collection_id for c in document.collections):
             raise HTTPException(
-                status_code=400, 
-                detail="Document is not part of the specified collection"
+                status_code=400,
+                detail="Document is not part of the specified collection",
             )
-    
+
     # Calculate TF-IDF scores
     tfidf_scores = await doc_repo.calculate_tfidf(
-        document_id=document_id,
-        user_id=user.id,
-        collection_id=collection_id
+        document_id=document_id, user_id=user.id, collection_id=collection_id
     )
-    
-    # Sort results by TF-IDF score (highest first) and limit to top 100
-    sorted_scores = sorted(tfidf_scores.items(), key=lambda x: x[1]["tfidf"], reverse=True)[:100]
-    
+
+    sorted_scores = sorted(
+        tfidf_scores.items(), key=lambda x: x[1]["tfidf"], reverse=True
+    )[:limit]
+
     return {
         "document_id": document_id,
         "collection_id": collection_id,
-        "scores": sorted_scores
+        "scores": sorted_scores,
     }
-
-
-

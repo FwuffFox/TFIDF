@@ -31,9 +31,8 @@ class UserRepository:
 
         Password is passed unhashed, and should be hashed before storing.
         """
-        from app.utils.auth import (
-            hash_password,
-        )  # Assuming you have a utility function to hash passwords
+        from app.utils.auth import \
+            hash_password  # Assuming you have a utility function to hash passwords
 
         password_hash = hash_password(password)
         user = User(username=username, password_hash=password_hash, email=email)
