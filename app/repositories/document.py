@@ -1,5 +1,6 @@
 import logging
 import math
+import time
 from typing import Dict, Optional, Sequence
 
 from sqlalchemy import func, select
@@ -260,6 +261,8 @@ class DocumentRepository:
                 - idf: Inverse Document Frequency score
                 - tfidf: TF-IDF score
         """
+        start_time = time.time()
+        
         # Get document word frequencies with TF scores
         query = select(WordFrequency).where(WordFrequency.document_id == document_id)
         result = await self.session.execute(query)
@@ -293,7 +296,11 @@ class DocumentRepository:
                 "idf": idf,
                 "tfidf": tfidf,
             }
-
+        end_time = time.time()
+        logger.debug(
+            f"Calculated TF-IDF for document {document_id} in {end_time - start_time:.2f} seconds"
+        )
+        await self.metrics.file_processed(end_time - start_time)
         return word_stats
 
     async def update_location(self, document_id: str, location: str) -> None:
