@@ -49,14 +49,13 @@ class MetricsService:
 
         # Track files processed in the last 24 hours
         # Store timestamp as a list in Redis
-        processing_history = await self.cache_storage.get("processing_timestamps") or []
+        processing_history = await self.cache_storage.lrange("processing_timestamps", 0, -1) or []
         processing_history.append(current_time)
 
         # Keep only timestamps from the last 24 hours
         one_day_ago = current_time - 86400  # 24 hours in seconds
         processing_history = [ts for ts in processing_history if ts > one_day_ago]
-
-        await self.cache_storage.set("processing_timestamps", processing_history)
+        await self.cache_storage.lpush("processing_timestamps", *processing_history)
 
     async def get_metrics(self) -> dict:
         files_processed = await self.cache_storage.get("files_processed") or 0
