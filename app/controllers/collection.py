@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from app.controllers.utils.responses import (response401, response403,
                                              response404)
 from app.dependencies import CollectionRepository, DocumentRepository
-from app.utils.auth import AuthenticatedUser
+from app.services.auth import AuthenticatedUser
 
 logger = logging.getLogger(__name__)
 

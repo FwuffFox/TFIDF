@@ -3,8 +3,8 @@ from fastapi.params import Depends
 
 from app.controllers.utils.responses import response401
 from app.dependencies import get_metrics_service
-from app.utils.auth import AuthenticatedUser
-from app.utils.metrics import MetricsService
+from app.services.auth import AuthenticatedUser
+from app.services.metrics import MetricsService
 
 router = APIRouter(
     prefix="/metrics",

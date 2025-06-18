@@ -31,7 +31,7 @@ class UserRepository:
 
         Password is passed unhashed, and should be hashed before storing.
         """
-        from app.utils.auth import \
+        from app.services.auth import \
             hash_password  # Assuming you have a utility function to hash passwords
 
         password_hash = hash_password(password)
@@ -44,7 +44,7 @@ class UserRepository:
         """
         Change the password for the given user.
         """
-        from app.utils.auth import hash_password
+        from app.services.auth import hash_password
 
         user.password_hash = hash_password(new_password)
         self.session.add(user)
@@ -66,6 +66,6 @@ class UserRepository:
         """
         Check if the provided password matches the stored password hash.
         """
-        from app.utils.auth import check_password
+        from app.services.auth import check_password
 
         return check_password(password, user.password_hash)  # type: ignore

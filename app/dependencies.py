@@ -10,9 +10,9 @@ from app.db import async_session
 from app.repositories.collection import CollectionRepository
 from app.repositories.document import DocumentRepository
 from app.repositories.user import UserRepository
-from app.utils.metrics import MetricsService
-from app.utils.storage import FileStorage
-from app.utils.token_manager import TokenManager
+from app.services.metrics import MetricsService
+from app.services.storage import FileStorage
+from app.services.token_manager import TokenManager
 
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
@@ -27,7 +27,7 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def get_cache_storage() -> AsyncGenerator[Redis, None]:
-    from app.utils.cache import cache_storage
+    from app.services.cache import cache_storage
 
     async with cache_storage as cache_storage:
         try:

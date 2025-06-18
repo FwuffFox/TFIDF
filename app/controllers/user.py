@@ -13,10 +13,10 @@ from app.dependencies import (get_document_repository, get_storage_service,
                               get_token_manager, get_user_repository)
 from app.repositories.document import DocumentRepository
 from app.repositories.user import UserRepository
-from app.utils.auth import (AuthenticatedUser, create_access_token,
-                            oauth2_scheme)
-from app.utils.storage import FileStorage
-from app.utils.token_manager import TokenManager
+from app.services.auth import (AuthenticatedUser, create_access_token,
+                               oauth2_scheme)
+from app.services.storage import FileStorage
+from app.services.token_manager import TokenManager
 
 logger = logging.getLogger(__name__)
 

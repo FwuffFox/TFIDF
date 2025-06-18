@@ -11,8 +11,8 @@ from fastapi.responses import StreamingResponse
 from app.controllers.utils.responses import (response401, response403,
                                              response404)
 from app.dependencies import (DocumentRepository, FileStorage)
-from app.utils import hash_file_md5
-from app.utils.auth import AuthenticatedUser
+from app.services import hash_file_md5
+from app.services.auth import AuthenticatedUser
 
 logger = logging.getLogger(__name__)
 
@@ -307,7 +307,7 @@ async def get_huffman_encoding(
 
     file_content = await storage.get_file_by_path(document.location)
 
-    from app.utils.huffman import huffman_encode_async
+    from app.services.huffman import huffman_encode_async
 
     encoded, codes, padding = await huffman_encode_async(file_content)
 

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.models import Collection, Document, WordFrequency
-from app.utils.metrics import MetricsService
+from app.services.metrics import MetricsService
 
 logger = logging.getLogger(__name__)
 
@@ -348,7 +348,7 @@ class DocumentRepository:
                 return False
 
             # Import here to avoid circular imports
-            from app.utils.text_processing import extract_word_frequencies
+            from app.services.text_processing import extract_word_frequencies
 
             # Extract word frequencies from text
             word_counts = extract_word_frequencies(text)
