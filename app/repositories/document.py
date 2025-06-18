@@ -171,6 +171,21 @@ class DocumentRepository:
 
         self.session.add_all(word_frequencies)
         await self.session.commit()
+        
+    async def get_word_frequencies(self, document_id: str) -> Sequence[WordFrequency]:
+        """
+        Retrieve word frequencies for a specific document.
+
+        Args:
+            document_id (str): The ID of the document to retrieve word frequencies for.
+
+        Returns:
+            Sequence[WordFrequency]: A sequence of WordFrequency objects for the specified document.
+        """
+        result = await self.session.execute(
+            select(WordFrequency).where(WordFrequency.document_id == document_id)
+        )
+        return result.scalars().all()
 
     async def calculate_document_frequency(
         self, user_id: str, collection_id: Optional[str] = None
@@ -264,9 +279,7 @@ class DocumentRepository:
         start_time = time.time()
 
         # Get document word frequencies with TF scores
-        query = select(WordFrequency).where(WordFrequency.document_id == document_id)
-        result = await self.session.execute(query)
-        word_frequencies = result.scalars().all()
+        word_frequencies = await self.get_word_frequencies(document_id)
 
         # Calculate document frequencies
         doc_frequencies = await self.calculate_document_frequency(

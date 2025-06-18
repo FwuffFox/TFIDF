@@ -254,7 +254,8 @@ async def get_document(
 @router.get(
     "/{document_id}/huffman",
     summary="Get Huffman encoding for document",
-    description="Retrieves the Huffman encoding for a specific document by its ID. The document must belong to the authenticated user.",
+    description="Retrieves the Huffman encoding for a specific document by its ID." \
+                "The document must belong to the authenticated user. Everything is encoded in base64 and decoded into ascii.",
     responses={
         200: {
             "description": "Huffman encoding for the document",

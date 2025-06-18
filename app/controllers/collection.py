@@ -458,7 +458,6 @@ async def get_collection_statistics(
         collection_id (str): The ID of the collection to analyze.
         collection_repo (CollectionRepository): Repository for collection operations.
         doc_repo (DocumentRepository): Repository for document operations.
-        tfidf_service (TFIDFService): Service for TF-IDF calculations.
 
     Returns:
         List[Dict]: List of words with their combined frequencies and TF-IDF scores.
@@ -471,92 +470,87 @@ async def get_collection_statistics(
     )
 
     try:
-        # Get the collection
-        collection = await collection_repo.get(collection_id)
+        # Check if collection exists and belongs to the user
+        collection = await collection_repo.get_with_documents(collection_id)
         if not collection:
-            logger.warning(
-                f"Collection statistics request failed - Collection not found, ID: {collection_id}, User: {user.username}"
-            )
+            logger.warning(f"Collection not found, ID: {collection_id}")
             raise HTTPException(status_code=404, detail="Collection not found")
 
         if collection.user_id != user.id:
             logger.warning(
-                f"Collection statistics request failed - Access denied, ID: {collection_id}, User: {user.username}, Owner: {collection.user_id}"
+                f"Access to collection denied, ID: {collection_id}, User: {user.username}"
             )
             raise HTTPException(status_code=403, detail="Access denied")
 
-        # Get documents in the collection
-        documents = await doc_repo.get_by_collection(collection_id)
+        # Get all documents in the collection
+        documents = collection.documents
         if not documents:
-            logger.warning(f"No documents found in collection - ID: {collection_id}")
+            logger.info(f"Collection has no documents, ID: {collection_id}")
             return []
 
-        # Get word frequencies for all documents in the collection
-        all_word_frequencies = {}
-        for document in documents:
-            word_freqs = await doc_repo.get_word_frequencies(document.id)
-            for wf in word_freqs:
-                if wf.word in all_word_frequencies:
-                    all_word_frequencies[wf.word] += wf.frequency
-                else:
-                    all_word_frequencies[wf.word] = wf.frequency
-
-        if not all_word_frequencies:
-            logger.warning(
-                f"No word frequencies found in collection documents - ID: {collection_id}"
-            )
-            return []
-
-        # Calculate term frequencies (TF) treating all documents as one
-        max_frequency = (
-            max(all_word_frequencies.values()) if all_word_frequencies else 1
+        # Get document frequencies across all documents in the collection
+        doc_frequencies = await doc_repo.calculate_document_frequency(
+            user.id, collection_id
         )
-
-        # Prepare results
-        results = []
-        for word, frequency in all_word_frequencies.items():
-            # Calculate term frequency for the collection
-            tf = frequency / max_frequency
-
-            # For IDF, use the standard calculation (number of docs containing term)
-            doc_count = 0
-            for document in documents:
-                doc_word_freqs = await doc_repo.get_word_frequencies(document.id)
-                if any(wf.word == word for wf in doc_word_freqs):
-                    doc_count += 1
-
-            # Calculate IDF (log of total docs divided by docs containing the term)
-            total_docs = len(documents)
-            # Add 1 to doc_count to avoid division by zero
-            idf = math.log((total_docs + 1) / (doc_count + 1)) + 1
-
+        
+        # Get total document count in the collection
+        total_docs = await doc_repo.calculate_total_documents(user.id, collection_id)
+        
+        # Combine word frequencies from all documents into a single count
+        combined_word_counts = {}
+        for doc in documents:
+            # Fetch word frequencies for this document
+            
+            word_frequencies = await doc_repo.get_word_frequencies(doc.id)
+            
+            # Add frequencies to the combined counts
+            for wf in word_frequencies:
+                if wf.word in combined_word_counts:
+                    combined_word_counts[wf.word] += wf.frequency
+                else:
+                    combined_word_counts[wf.word] = wf.frequency
+        
+        # Calculate total words across all documents for TF calculation
+        total_words = sum(combined_word_counts.values())
+        
+        # Calculate statistics for each word
+        word_stats = []
+        for word, frequency in combined_word_counts.items():
+            # Calculate TF for the combined collection (frequency / total words)
+            tf = frequency / total_words if total_words > 0 else 0
+            
+            # Get document frequency (df) for this word, default to 1 to avoid division by zero
+            df = doc_frequencies.get(word, 1)
+            
+            # Calculate IDF: log(total_docs / df)
+            idf = math.log(total_docs / df) if df > 0 else 0
+            
             # Calculate TF-IDF
             tfidf = tf * idf
-
-            results.append(
-                {
-                    "word": word,
-                    "frequency": frequency,
-                    "tf": round(tf, 4),
-                    "idf": round(idf, 4),
-                    "tfidf": round(tfidf, 4),
-                }
-            )
-
-        # Sort by TF-IDF score descending
-        results.sort(key=lambda x: x["tfidf"], reverse=True)
-
+            
+            # Add to results
+            word_stats.append({
+                "word": word,
+                "frequency": frequency,
+                "tf": round(tf, 4),
+                "idf": round(idf, 4),
+                "tfidf": round(tfidf, 4)
+            })
+        
+        # Sort by TF-IDF score in descending order
+        word_stats.sort(key=lambda x: x["tfidf"], reverse=True)
+        
         logger.info(
-            f"Collection statistics calculated successfully - ID: {collection_id}, Words: {len(results)}"
+            f"Collection statistics calculated successfully - ID: {collection_id}, Words: {len(word_stats)}"
         )
-        return results
-
+        return word_stats[:50]
+        
     except HTTPException:
         # Re-raise HTTP exceptions since they've already been logged
         raise
     except Exception as e:
         logger.error(
-            f"Error calculating collection statistics - ID: {collection_id}: {str(e)}",
+            f"Error calculating collection statistics for ID {collection_id}, User {user.username}: {str(e)}",
             exc_info=True,
         )
         raise HTTPException(
