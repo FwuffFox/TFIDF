@@ -98,7 +98,7 @@ async def list_documents(
 )
 async def create_document(
     user: AuthenticatedUser,
-    title: Annotated[str, Query(..., description="The title of the document")],
+    title: Annotated[Optional[str], Query(..., description="The title of the document")],
     file: Annotated[UploadFile, File(..., description="The document file to upload")],
     doc_repo: DocumentRepository,
     storage: FileStorage,
@@ -122,9 +122,27 @@ async def create_document(
     Raises:
         HTTPException: If document with same content already exists (400)
     """
+    title = title or file.filename
+    if not title:
+        logger.error(
+            f"Document upload failed - Missing title, User: {user.username}"
+        )
+        raise HTTPException(
+            status_code=400, detail="Title or filename is required for the document"
+        )
+    
     logger.info(f"Document upload requested - Title: {title}, User: {user.username}")
 
     filebytes = await file.read()
+    try:
+        decoded_bytes = filebytes.decode("utf-8")
+    except UnicodeDecodeError:
+        logger.error(
+            f"Document upload failed - Invalid file encoding, Title: {title}, User: {user.username}"
+        )
+        raise HTTPException(
+            status_code=400, detail="Invalid file encoding. Please upload a valid text file."
+        )
     file_hash = hash_file_md5(user.id, filebytes)
 
     # Check if document with same hash already exists
@@ -155,7 +173,7 @@ async def create_document(
     # Process document text to extract word frequencies and term frequencies
     logger.info(f"Starting background processing of document text - ID: {document.id}")
     success = await doc_repo.process_document_text(
-        document.id, filebytes.decode("utf-8", errors="ignore")
+        document.id, decoded_bytes
     )
     if success:
         logger.info(
@@ -228,7 +246,7 @@ async def get_document(
     return StreamingResponse(
         file_stream,
         media_type="application/octet-stream",
-        headers={"Content-Disposition": f"attachment; filename={document.title}.txt"},
+        headers={"Content-Disposition": f"attachment; filename={document.title}"},
     )
 
 
