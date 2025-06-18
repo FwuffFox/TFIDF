@@ -12,15 +12,15 @@ class MetricsService:
         self.cache_storage = cache_storage
 
     async def file_processed(self, time_taken: float, times=1) -> None:
-        files_processed = await self.cache_storage.get("files_processed") or 0
+        files_processed = int(await self.cache_storage.get("files_processed") or 0)
         files_processed += times
         await self.cache_storage.set("files_processed", files_processed)
 
-        min_time = await self.cache_storage.get("min_processing_time") or float("inf")
+        min_time = float(await self.cache_storage.get("min_processing_time") or float("inf"))
         if time_taken < min_time:
             await self.cache_storage.set("min_processing_time", time_taken)
 
-        max_time = await self.cache_storage.get("max_processing_time") or 0
+        max_time = float(await self.cache_storage.get("max_processing_time") or 0)
         if time_taken > max_time:
             await self.cache_storage.set("max_processing_time", time_taken)
 
@@ -31,7 +31,7 @@ class MetricsService:
         )
 
         # Update total processing time
-        total_time = await self.cache_storage.get("total_processing_time") or 0
+        total_time = int(await self.cache_storage.get("total_processing_time") or 0)
         total_time += time_taken
         await self.cache_storage.set("total_processing_time", total_time)
 
