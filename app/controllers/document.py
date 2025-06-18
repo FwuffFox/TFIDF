@@ -98,10 +98,10 @@ async def list_documents(
 )
 async def create_document(
     user: AuthenticatedUser,
-    title: Annotated[Optional[str], Query(..., description="The title of the document")],
     file: Annotated[UploadFile, File(..., description="The document file to upload")],
     doc_repo: DocumentRepository,
     storage: FileStorage,
+    title: Annotated[Optional[str], Query(..., description="The title of the document",)] = None,
 ):
     """
     Upload a new document file.

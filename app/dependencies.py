@@ -33,10 +33,9 @@ async def get_cache_storage() -> AsyncGenerator[Redis, None]:
         try:
             yield cache_storage
         except Exception:
-            await cache_storage.rollback()
             raise
         finally:
-            await cache_storage.close()
+            await cache_storage.aclose()
 
 
 async def get_metrics_service(cache_storage: Redis = Depends(get_cache_storage)):
