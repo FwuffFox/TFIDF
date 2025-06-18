@@ -262,7 +262,7 @@ class DocumentRepository:
                 - tfidf: TF-IDF score
         """
         start_time = time.time()
-        
+
         # Get document word frequencies with TF scores
         query = select(WordFrequency).where(WordFrequency.document_id == document_id)
         result = await self.session.execute(query)

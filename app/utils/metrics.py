@@ -11,7 +11,7 @@ class MetricsService:
         """
         self.cache_storage = cache_storage
 
-    async def file_processed(self, time_taken: float, times = 1) -> None:
+    async def file_processed(self, time_taken: float, times=1) -> None:
         files_processed = self.cache_storage.get("files_processed") or 0
         files_processed += times
         await self.cache_storage.set("files_processed", files_processed)
@@ -38,7 +38,9 @@ class MetricsService:
         await self.cache_storage.set("last_processing_time", time_taken)
 
         current_time = time.time()
-        current_timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(current_time))
+        current_timestamp = time.strftime(
+            "%Y-%m-%d %H:%M:%S", time.localtime(current_time)
+        )
 
         await self.cache_storage.set(
             "latest_file_processed_timestamp",

@@ -9,17 +9,19 @@ from fastapi.responses import StreamingResponse
 
 from app.controllers.utils.responses import (response401, response403,
                                              response404)
-from app.dependencies import (get_async_session, get_document_repository,
+from app.dependencies import (DocumentRepository, FileStorage,
+                              get_async_session, get_document_repository,
                               get_storage_service)
-from app.repositories.document import DocumentRepository
 from app.utils import hash_file_md5
 from app.utils.auth import AuthenticatedUser
-from app.utils.storage import FileStorage
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/documents", tags=["documents"], 
-                   responses={401: response401, 403: response403, 404: response404})
+router = APIRouter(
+    prefix="/documents",
+    tags=["documents"],
+    responses={401: response401, 403: response403, 404: response404},
+)
 
 
 @router.get(
@@ -43,7 +45,7 @@ router = APIRouter(prefix="/documents", tags=["documents"],
 )
 async def list_documents(
     user: AuthenticatedUser,
-    doc_repo: DocumentRepository = Depends(get_document_repository),
+    doc_repo: DocumentRepository,
     offset: int = Query(
         0, description="Number of documents to skip for pagination", ge=0
     ),
@@ -98,10 +100,10 @@ async def list_documents(
 )
 async def create_document(
     user: AuthenticatedUser,
-    title: str = Query(..., description="The title of the document"),
-    file: UploadFile = File(..., description="The document file to upload"),
-    doc_repo: DocumentRepository = Depends(get_document_repository),
-    storage: FileStorage = Depends(get_storage_service),
+    title: Annotated[str, Query(..., description="The title of the document")],
+    file: Annotated[UploadFile, File(..., description="The document file to upload")],
+    doc_repo: DocumentRepository,
+    storage: FileStorage,
 ):
     """
     Upload a new document file.
@@ -181,9 +183,11 @@ async def create_document(
 )
 async def get_document(
     user: AuthenticatedUser,
-    document_id: str = Path(..., description="The ID of the document to retrieve"),
-    repo: DocumentRepository = Depends(get_document_repository),
-    storage: FileStorage = Depends(get_storage_service),
+    document_id: Annotated[
+        str, Path(..., description="The ID of the document to retrieve")
+    ],
+    repo: DocumentRepository,
+    storage: FileStorage,
 ) -> StreamingResponse:
     """
     Retrieve a specific document by its ID for the authenticated user.
@@ -228,6 +232,73 @@ async def get_document(
         media_type="application/octet-stream",
         headers={"Content-Disposition": f"attachment; filename={document.title}.txt"},
     )
+
+
+@router.get(
+    "/{document_id}/huffman",
+    summary="Get Huffman encoding for document",
+    description="Retrieves the Huffman encoding for a specific document by its ID. The document must belong to the authenticated user.",
+    responses={
+        200: {
+            "description": "Huffman encoding for the document",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "document_id": "doc1",
+                        "huffman_encoded": "encoded_string_here",
+                        "codes": {
+                            "a": "00",
+                            "b": "01",
+                            "c": "10",
+                            # ... other characters
+                        },
+                        "padding": 2,
+                    }
+                }
+            }
+        }
+    }
+)
+async def get_huffman_encoding(
+    user: AuthenticatedUser,
+    document_id: Annotated[
+        str,
+        Path(
+            ..., description="The ID of the document to retrieve Huffman encoding for"
+        ),
+    ],
+    repo: DocumentRepository,
+    storage: FileStorage,
+):
+    """
+    Get the Huffman encoding for a specific document.
+
+    Returns:
+        Dict containing the Huffman encoding
+
+    Raises:
+        HTTPException: If document not found (404) or access denied (403)
+    """
+    document = await repo.get(document_id)
+
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if document.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    file_content = await storage.get_file_by_path(document.location)
+
+    from app.utils.huffman import huffman_encode_async
+
+    encoded, codes, padding = await huffman_encode_async(file_content)
+
+    return {
+        "document_id": document_id,
+        "huffman_encoded": encoded,
+        "codes": codes,
+        "padding": padding,
+    }
 
 
 @router.delete(
@@ -319,17 +390,32 @@ async def delete_document(
 )
 async def calculate_tfidf(
     user: AuthenticatedUser,
-    document_id: str = Path(
+    doc_repo: DocumentRepository,
+    document_id: Annotated[str, Path(
         ..., description="The ID of the document to calculate TF-IDF for"
-    ),
-    collection_id: Optional[str] = Query(
+    )],
+    collection_id: Annotated[Optional[str], Query(
         None, description="Collection ID to scope the TF-IDF calculation (optional)"
-    ),
-    limit: Annotated[int, Query(..., ge=1, le=100,description="Maximum number of terms to return in the TF-IDF scores")] = 50,
-    doc_repo: DocumentRepository = Depends(get_document_repository),
+    )],
+    limit: Annotated[
+        int,
+        Query(
+            ...,
+            ge=1,
+            le=100,
+            description="Maximum number of terms to return in the TF-IDF scores",
+        ),
+    ] = 50,
 ):
     """
     Calculate TF-IDF scores for a document.
+    
+    If a collection ID is provided, the IDF is calculated based on documents in that collection.
+    
+    Otherwise, it uses all documents from the user.
+    
+    Returns:
+        Dict containing the document ID, collection ID (if provided), and sorted TF-IDF scores.
     """
     # Get the document to check ownership
     document = await doc_repo.get_with_collections(document_id)
