@@ -26,7 +26,7 @@ class MetricsService:
 
         await self.cache_storage.set(
             "average_processing_time",
-            (await self.cache_storage.get("average_processing_time") or 0)
+            int(await self.cache_storage.get("average_processing_time") or 0)
             + time_taken / (files_processed + 1),
         )
 
