@@ -3,15 +3,13 @@ import logging
 from io import BytesIO
 from typing import Annotated, Dict, List, Optional
 
-from fastapi import (APIRouter, Depends, File, HTTPException, Path, Query,
+from fastapi import (APIRouter, File, HTTPException, Path, Query,
                      UploadFile)
 from fastapi.responses import StreamingResponse
 
 from app.controllers.utils.responses import (response401, response403,
                                              response404)
-from app.dependencies import (DocumentRepository, FileStorage,
-                              get_async_session, get_document_repository,
-                              get_storage_service)
+from app.dependencies import (DocumentRepository, FileStorage)
 from app.utils import hash_file_md5
 from app.utils.auth import AuthenticatedUser
 
@@ -317,9 +315,9 @@ async def get_huffman_encoding(
 )
 async def delete_document(
     user: AuthenticatedUser,
-    document_id: str = Path(..., description="The ID of the document to delete"),
-    repo: DocumentRepository = Depends(get_document_repository),
-    storage: FileStorage = Depends(get_storage_service),
+    document_id: Annotated[str, Path(..., description="The ID of the document to delete")],
+    repo: DocumentRepository,
+    storage: FileStorage,
 ):
     """
     Delete a specific document by its ID.
