@@ -102,7 +102,7 @@ async def create_document(
     file: Annotated[UploadFile, File(..., description="The document file to upload")],
     doc_repo: DocumentRepository,
     storage: FileStorage,
-    title: Annotated[Optional[str], Query(..., description="The title of the document",)] = None,
+    title: Annotated[Optional[str], Query(..., description="The title of the document")] = None,
 ):
     """
     Upload a new document file.
@@ -312,8 +312,8 @@ async def get_huffman_encoding(
 
     return {
         "document_id": document_id,
-        "huffman_encoded": base64.b64encode(encoded).decode("ascii"),
-        "codes": {base64.b64encode(symbol).decode("ascii"): code for symbol, code in codes.items() },
+        "huffman_encoded": base64.b64encode(encoded).decode(),
+        "codes": {symbol: code for symbol, code in codes.items() },
         "padding": padding,
     }
 
