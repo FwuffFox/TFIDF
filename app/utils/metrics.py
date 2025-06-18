@@ -12,7 +12,7 @@ class MetricsService:
         self.cache_storage = cache_storage
 
     async def file_processed(self, time_taken: float, times=1) -> None:
-        files_processed = self.cache_storage.get("files_processed") or 0
+        files_processed = await self.cache_storage.get("files_processed") or 0
         files_processed += times
         await self.cache_storage.set("files_processed", files_processed)
 
