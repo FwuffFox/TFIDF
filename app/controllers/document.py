@@ -393,8 +393,8 @@ async def calculate_tfidf(
         ..., description="The ID of the document to calculate TF-IDF for"
     )],
     collection_id: Annotated[Optional[str], Query(
-        None, description="Collection ID to scope the TF-IDF calculation (optional)"
-    )],
+        ..., description="Collection ID to scope the TF-IDF calculation (optional)"
+    )] = None,
     limit: Annotated[
         int,
         Query(
