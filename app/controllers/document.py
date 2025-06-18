@@ -311,8 +311,8 @@ async def get_huffman_encoding(
 
     return {
         "document_id": document_id,
-        "huffman_encoded": encoded,
-        "codes": codes,
+        "huffman_encoded": encoded.decode(),
+        "codes": {symbol.decode(): code for symbol, code in codes.items() },
         "padding": padding,
     }
 
